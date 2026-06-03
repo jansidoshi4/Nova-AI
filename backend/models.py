@@ -14,6 +14,9 @@ class ChatRequest(BaseModel):
     history: list[Message]  # full conversation so far
     schema: Optional[str] = ""  # user-pasted SQL schema
 
+class ExplainSchemaRequest(BaseModel):
+    schema: str
+
 
 class SessionCreate(BaseModel):
     session_id: str

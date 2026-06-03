@@ -34,7 +34,11 @@ export function useQueryRunner(schema, sql) {
         }
         setError(null)
       } catch (e) {
-        setError(e.message || 'Query failed')
+        let msg = e.message || 'Query failed'
+        if (msg.includes('undefined') && msg.includes('databaseid')) {
+          msg = 'Incomplete or invalid SQL query.'
+        }
+        setError(msg)
         setResult(null)
       }
     }

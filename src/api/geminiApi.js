@@ -72,3 +72,19 @@ export async function fetchMessages(sessionId) {
 export async function deleteSession(sessionId) {
   await fetch(`${BACKEND_URL}/sessions/${sessionId}`, { method: 'DELETE' })
 }
+export async function explainSchema(schema) {
+  const response = await fetch(`${BACKEND_URL}/explain-schema`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ schema }),
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.detail || `Backend error ${response.status}`)
+  }
+
+  return response.json()
+}
