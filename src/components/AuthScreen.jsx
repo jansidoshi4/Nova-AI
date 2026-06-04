@@ -14,6 +14,7 @@ export default function AuthScreen({ onSignIn, onSignUp, onGoogle }) {
   const [mode, setMode]   = useState('signin')
   const [form, setForm]   = useState(initialForm)
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const isSignup = mode === 'signup'
 
@@ -22,21 +23,28 @@ export default function AuthScreen({ onSignIn, onSignUp, onGoogle }) {
     setError('')
   }
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     setError('')
+    setIsLoading(true)
     try {
-      isSignup ? onSignUp(form) : onSignIn(form)
+      if (isSignup) {
+        await onSignUp(form)
+      } else {
+        await onSignIn(form)
+      }
     } catch (err) {
       setError(err.message || 'Unable to continue.')
+      setIsLoading(false)
     }
   }
 
-  const submitGoogle = ({ credential }) => {
+  const submitGoogle = async ({ credential }) => {
     setError('')
+    setIsLoading(true)
     try {
       const payload = JSON.parse(atob(credential.split('.')[1]))
-      onGoogle({
+      await onGoogle({
         id: `google:${payload.sub}`,
         name: payload.name || payload.email,
         email: payload.email,
@@ -45,6 +53,7 @@ export default function AuthScreen({ onSignIn, onSignUp, onGoogle }) {
       })
     } catch {
       setError('Google sign-in failed. Please try again.')
+      setIsLoading(false)
     }
   }
 
@@ -130,31 +139,36 @@ export default function AuthScreen({ onSignIn, onSignUp, onGoogle }) {
 
           <form className="auth-form" onSubmit={submit}>
             {isSignup && (
-              <label>
-                Name
+              <div className="auth-field">
+                <label htmlFor="auth-name">Name</label>
                 <input
+                  id="auth-name"
                   value={form.name}
                   onChange={e => updateForm('name', e.target.value)}
                   placeholder="Your name"
                   autoComplete="name"
                   required
+                  disabled={isLoading}
                 />
-              </label>
+              </div>
             )}
-            <label>
-              Email
+            <div className="auth-field">
+              <label htmlFor="auth-email">Email</label>
               <input
+                id="auth-email"
                 value={form.email}
                 onChange={e => updateForm('email', e.target.value)}
                 placeholder="you@example.com"
                 type="email"
                 autoComplete="email"
                 required
+                disabled={isLoading}
               />
-            </label>
-            <label>
-              Password
+            </div>
+            <div className="auth-field">
+              <label htmlFor="auth-password">Password</label>
               <input
+                id="auth-password"
                 value={form.password}
                 onChange={e => updateForm('password', e.target.value)}
                 placeholder={isSignup ? 'Create a password' : 'Enter password'}
@@ -162,14 +176,19 @@ export default function AuthScreen({ onSignIn, onSignUp, onGoogle }) {
                 autoComplete={isSignup ? 'new-password' : 'current-password'}
                 minLength={4}
                 required
+                disabled={isLoading}
               />
-            </label>
+            </div>
 
-            {error && <p className="auth-error">{error}</p>}
+            {error && <p className="auth-error" role="alert">{error}</p>}
 
-            <button className="auth-primary" type="submit">
-              <i className={isSignup ? 'ti ti-user-plus' : 'ti ti-login-2'} aria-hidden="true" />
-              {isSignup ? 'Create account' : 'Sign in'}
+            <button className="auth-primary" type="submit" disabled={isLoading}>
+              {isLoading ? (
+                <div className="auth-spinner" aria-hidden="true" />
+              ) : (
+                <i className={isSignup ? 'ti ti-user-plus' : 'ti ti-login-2'} aria-hidden="true" />
+              )}
+              {isLoading ? (isSignup ? 'Creating...' : 'Signing in...') : (isSignup ? 'Create account' : 'Sign in')}
             </button>
           </form>
 
