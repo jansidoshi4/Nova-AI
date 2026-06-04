@@ -16,10 +16,10 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 3rem;
-  background: var(--header-bg);
+  background: rgba(255, 255, 255, 0.4);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(244,63,127,0.2);
   box-shadow: 0 4px 20px rgba(0,0,0,0.05);
   z-index: 10;
 }
@@ -128,10 +128,10 @@
 /* ─── Bubble Card ─── */
 .bubble-card {
   min-width: 100%;
-  background: var(--card-bg);
+  background: rgba(255,255,255,0.62);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--card-border);
+  border: 1px solid rgba(255,255,255,0.55);
   border-radius: 28px;
   padding: 3rem 2.5rem 2.5rem;
   box-shadow: 0 16px 48px rgba(0,0,0,0.10);
@@ -245,7 +245,89 @@
 .bubble-arrow--left  { left: 4px; }
 .bubble-arrow--right { right: 4px; }
 
-/* ── Theme removals from dashboard.css since they are in chat.css now ── */
+/* ═══════════════════════════════════════
+   DARK THEME
+═══════════════════════════════════════ */
+[data-theme="dark"] .dashboard-container { color: #e2e2f0; }
+
+[data-theme="dark"] .dashboard-header {
+  background: rgba(15,15,26,0.6);
+  border-bottom: 1px solid rgba(124,111,247,0.2);
+}
+[data-theme="dark"] .dashboard-logo { color: #a09af7; }
+[data-theme="dark"] .theme-toggle-btn {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(124,111,247,0.2);
+  color: #a09af7;
+}
+[data-theme="dark"] .theme-toggle-btn:hover { background: rgba(124,111,247,0.15); }
+[data-theme="dark"] .dashboard-user-name { color: #9d9dc7; }
+[data-theme="dark"] .dashboard-logout-btn { border-color: #7c6ff7; color: #a09af7; }
+[data-theme="dark"] .dashboard-logout-btn:hover { background: #7c6ff7; color: white; }
+
+[data-theme="dark"] .available-heading { color: #e2e2f0; }
+[data-theme="dark"] .available-sub { color: #9d9dc7; }
+
+[data-theme="dark"] .bubble-card {
+  background: rgba(30,30,46,0.75);
+  border: 1px solid rgba(124,111,247,0.2);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.3);
+}
+[data-theme="dark"] .bubble-card-title { color: #e2e2f0; }
+[data-theme="dark"] .bubble-card-tagline { color: #a09af7; }
+[data-theme="dark"] .bubble-card-desc { color: #9d9dc7; }
+[data-theme="dark"] .bubble-card-btn {
+  background: linear-gradient(135deg, #7c6ff7, #5b52d9);
+  box-shadow: 0 4px 15px rgba(124,111,247,0.3);
+}
+[data-theme="dark"] .bubble-card-btn:hover { box-shadow: 0 8px 25px rgba(124,111,247,0.45); }
+
+[data-theme="dark"] .bubble-dot { background: rgba(160,154,247,0.25); }
+[data-theme="dark"] .bubble-dot--active { background: #a09af7; }
+
+[data-theme="dark"] .bubble-arrow {
+  background: rgba(30,30,46,0.75);
+  border-color: rgba(124,111,247,0.3);
+  color: #a09af7;
+}
+[data-theme="dark"] .bubble-arrow:hover { background: #7c6ff7; color: white; }
+
+/* ═══════════════════════════════════════
+   LIGHT THEME
+═══════════════════════════════════════ */
+[data-theme="light"] .dashboard-header {
+  background: rgba(255,255,255,0.9);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+[data-theme="light"] .dashboard-logo { color: #2c3e50; }
+[data-theme="light"] .theme-toggle-btn { background: #fff; border-color: #e0e0e0; color: #555; }
+[data-theme="light"] .theme-toggle-btn:hover { background: #f0f0f0; }
+[data-theme="light"] .dashboard-user-name { color: #555; }
+[data-theme="light"] .dashboard-logout-btn { border-color: #2c3e50; color: #2c3e50; }
+[data-theme="light"] .dashboard-logout-btn:hover { background: #2c3e50; color: white; }
+
+[data-theme="light"] .available-heading { color: #2c3e50; }
+[data-theme="light"] .available-sub { color: #6b7280; }
+
+[data-theme="light"] .bubble-card {
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.07);
+}
+[data-theme="light"] .bubble-card-tagline { color: #2c3e50; }
+[data-theme="light"] .bubble-card-btn {
+  background: linear-gradient(135deg, #2c3e50, #34495e);
+  box-shadow: 0 4px 15px rgba(44,62,80,0.25);
+}
+[data-theme="light"] .bubble-card-btn:hover { box-shadow: 0 8px 25px rgba(44,62,80,0.4); }
+[data-theme="light"] .bubble-dot { background: rgba(44,62,80,0.2); }
+[data-theme="light"] .bubble-dot--active { background: #2c3e50; }
+[data-theme="light"] .bubble-arrow {
+  background: rgba(255,255,255,0.9);
+  border-color: rgba(44,62,80,0.2);
+  color: #2c3e50;
+}
+[data-theme="light"] .bubble-arrow:hover { background: #2c3e50; color: white; }
 
 /* ════════════════════════════════════
    SCROLLABLE LANDING + FLOATING NAV
@@ -389,6 +471,17 @@
   border: 0.5px solid rgba(255,255,255,0.2);
 }
 
+/* Dark mode tweaks */
+[data-theme="dark"] .db-section { border-bottom-color: rgba(124,111,247,0.1); }
+[data-theme="dark"] .db-heading { color: #e2e2f0; }
+[data-theme="dark"] .db-try-btn { border-color: #7c6ff7; color: #a09af7; }
+[data-theme="dark"] .db-try-btn:hover { background: #7c6ff7; color: white; }
+
+/* Light mode tweaks */
+[data-theme="light"] .db-section { border-bottom-color: rgba(0,0,0,0.06); }
+[data-theme="light"] .db-heading { color: #2c3e50; }
+[data-theme="light"] .db-try-btn { border-color: #2c3e50; color: #2c3e50; }
+[data-theme="light"] .db-try-btn:hover { background: #2c3e50; color: white; }
 
 /* ══════════════════════════════════════════════
    FLOATING BACKGROUND BUBBLES  (Dashboard)
@@ -399,8 +492,8 @@
   border-radius: 999px;
   pointer-events: none;
   z-index: 0;
-  border: 1px solid var(--orbit-border);
-  box-shadow: 0 0 60px var(--orbit-shadow);
+  border: 1px solid rgba(244, 63, 127, 0.28);
+  box-shadow: 0 0 60px rgba(244, 63, 127, 0.07);
 }
 
 .db-orbit-one {
@@ -442,4 +535,16 @@
 
 .db-float-nav {
   z-index: 200;
+}
+
+/* ── Dark theme ── */
+[data-theme="dark"] .db-orbit {
+  border-color: rgba(124, 111, 247, 0.3);
+  box-shadow: 0 0 60px rgba(124, 111, 247, 0.07);
+}
+
+/* ── Light theme ── */
+[data-theme="light"] .db-orbit {
+  border-color: rgba(44, 62, 80, 0.14);
+  box-shadow: 0 0 60px rgba(44, 62, 80, 0.05);
 }
