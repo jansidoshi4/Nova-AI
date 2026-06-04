@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../styles/dashboard.css';
 
+const SECTION_IDS = ['db-intro', 'db-sql', 'db-pdf'];
+
 export default function Dashboard({ user, onSignOut, themeLabel, onCycleTheme, onOpenSQLChat, onOpenPDFChat }) {
 
   const sectionRefs = useRef([]);
   const navBtnRefs = useRef([]);
   const [activeTab, setActiveTab] = useState('db-intro');
 
+  // Fade-in animation observer
   useEffect(() => {
     const observer = new IntersectionObserver(entries => {
       entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('db-visible'); });
@@ -15,28 +18,21 @@ export default function Dashboard({ user, onSignOut, themeLabel, onCycleTheme, o
     return () => observer.disconnect();
   }, []);
 
+  // Active nav tab on scroll — use IntersectionObserver, no stale closure issues
   useEffect(() => {
-    const handleScroll = () => {
-      const mid = window.scrollY + window.innerHeight;
-      let active = 0;
-      navBtnRefs.current.forEach((btn, i) => {
-        const target = btn && document.getElementById(btn.dataset.target);
-        if (target && target.offsetTop <= mid) active = i;
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          setActiveTab(entry.target.id);
+        }
       });
+    }, {
+      rootMargin: '-40% 0px -55% 0px', // fires when section is roughly centered in viewport
+      threshold: 0,
+    });
 
-            const ids = ['db-intro', 'db-sql', 'db-pdf'];
-            console.log('Detected section:', ids[active]);
-
-          if (activeTab !== ids[active]) {
-            setActiveTab(ids[active]);
-          }
-      
-      
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    sectionRefs.current.forEach(s => s && observer.observe(s));
+    return () => observer.disconnect();
   }, []);
 
   const scrollTo = (id) => {
@@ -45,6 +41,11 @@ export default function Dashboard({ user, onSignOut, themeLabel, onCycleTheme, o
 
   return (
     <div className="db-wrap">
+
+      {/* ── Floating background bubbles ── */}
+      <div className="db-orbit db-orbit-one" />
+      <div className="db-orbit db-orbit-two" />
+      <div className="db-orbit db-orbit-three" />
 
       {/* ── Top header ── */}
       <header className="dashboard-header">
@@ -81,38 +82,17 @@ export default function Dashboard({ user, onSignOut, themeLabel, onCycleTheme, o
 
       {/* ── Floating nav ── */}
       <nav className="db-float-nav">
-              <button
-        className={`db-nav-btn ${activeTab === 'db-intro' ? 'db-nav-active' : ''}`}
-        data-target="db-intro"
-        ref={el => navBtnRefs.current[0] = el}
-        onClick={() => {
-          setActiveTab('db-intro')
-          scrollTo('db-intro')
-        }}
-      >
-        Intro
-      </button>
-        
-        <button
-          className={`db-nav-btn ${activeTab === 'db-sql' ? 'db-nav-active' : ''}`}
-          data-target="db-sql"
-          ref={el => navBtnRefs.current[1] = el}
-         onClick={() => {
-          setActiveTab('db-sql')
-          scrollTo('db-sql')
-        }}
-        >
-          SQL Chatbot
-        </button>
-
-        <button className={`db-nav-btn ${activeTab === 'db-pdf' ? 'db-nav-active' : ''}`}
-        data-target="db-pdf" ref={el => navBtnRefs.current[2] = el} onClick={() => {
-        setActiveTab('db-pdf')
-        scrollTo('db-pdf')
-      }}
-       >
-        PDF Chatbot
-        </button>
+        {SECTION_IDS.map((id, i) => (
+          <button
+            key={id}
+            className={`db-nav-btn ${activeTab === id ? 'db-nav-active' : ''}`}
+            data-target={id}
+            ref={el => navBtnRefs.current[i] = el}
+            onClick={() => { setActiveTab(id); scrollTo(id); }}
+          >
+            {['Intro', 'SQL Chatbot', 'PDF Chatbot'][i]}
+          </button>
+        ))}
       </nav>
 
     </div>

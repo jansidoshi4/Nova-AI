@@ -482,3 +482,69 @@
 [data-theme="light"] .db-heading { color: #2c3e50; }
 [data-theme="light"] .db-try-btn { border-color: #2c3e50; color: #2c3e50; }
 [data-theme="light"] .db-try-btn:hover { background: #2c3e50; color: white; }
+
+/* ══════════════════════════════════════════════
+   FLOATING BACKGROUND BUBBLES  (Dashboard)
+   ══════════════════════════════════════════════ */
+
+.db-orbit {
+  position: fixed;          /* fixed so they stay behind scrolling content */
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 0;
+  border: 1px solid rgba(244, 63, 127, 0.28);
+  box-shadow: 0 0 60px rgba(244, 63, 127, 0.07);
+}
+
+.db-orbit-one {
+  width: 520px;
+  height: 520px;
+  left: -160px;
+  top: -140px;
+  animation: dbFloat 18s linear infinite;
+}
+
+.db-orbit-two {
+  width: 320px;
+  height: 320px;
+  right: 5vw;
+  bottom: -100px;
+  animation: dbFloat 14s linear infinite reverse;
+}
+
+.db-orbit-three {
+  width: 200px;
+  height: 200px;
+  right: 20vw;
+  top: 30vh;
+  animation: dbFloat 22s linear infinite;
+  opacity: 0.6;
+}
+
+@keyframes dbFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(22px); }
+}
+
+/* Ensure sections render above the orbits */
+.db-section,
+.dashboard-header {
+  position: relative;
+  z-index: 1;
+}
+
+.db-float-nav {
+  z-index: 200;
+}
+
+/* ── Dark theme ── */
+[data-theme="dark"] .db-orbit {
+  border-color: rgba(124, 111, 247, 0.3);
+  box-shadow: 0 0 60px rgba(124, 111, 247, 0.07);
+}
+
+/* ── Light theme ── */
+[data-theme="light"] .db-orbit {
+  border-color: rgba(44, 62, 80, 0.14);
+  box-shadow: 0 0 60px rgba(44, 62, 80, 0.05);
+}
