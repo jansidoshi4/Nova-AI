@@ -8,6 +8,7 @@ import AuthScreen from './components/AuthScreen'
 import Dashboard from './components/Dashboard'
 import SchemaPanel from './components/SchemaPanel'
 import ResultTable from './components/ResultTable'
+import PdfChatPanel from './components/PdfChatPanel'
 import { useAuth } from './hooks/useAuth'
 import { useChat } from './hooks/useChat'
 import { useChatHistory } from './hooks/useChatHistory'
@@ -18,8 +19,8 @@ function isSQL(text) {
   return /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|WITH)\b/i.test(text.trim())
 }
 
-const THEMES = ['pink', 'dark', 'light']
-const THEME_LABELS = { pink: '🌸 Pink', dark: '🌑 Dark', light: '☀️ Light' }
+const THEMES = ['pink', 'dark', 'light', 'aurora']
+const THEME_LABELS = { pink: '🌸 Pink', dark: '🌑 Dark', light: '☀️ Light', aurora: '🌌 Aurora' }
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('dashboard')
@@ -146,41 +147,7 @@ INSERT INTO Courses VALUES
             onBackToDashboard={() => setCurrentScreen('dashboard')}
           />
 
-          <div className="schema-input-area">
-            <label className="pdf-upload-label">
-              <input
-                type="file"
-                accept="application/pdf"
-                style={{ display: 'none' }}
-                onChange={e => setPdfFile(e.target.files[0] || null)}
-              />
-              <div className="pdf-upload-box">
-                <i className="ti ti-file-type-pdf" style={{ fontSize: '1.6rem' }} aria-hidden="true" />
-                {pdfFile
-                  ? <span className="pdf-filename">📄 {pdfFile.name}</span>
-                  : <span>Click to upload a PDF</span>
-                }
-              </div>
-            </label>
-            {pdfFile && (
-              <div className="schema-toolbar">
-                <button className="schema-tool-btn" onClick={() => setPdfFile(null)}>
-                  🗑️ Remove PDF
-                </button>
-              </div>
-            )}
-          </div>
-
-          <MessageList messages={messages} typing={typing} />
-          <SuggestionChips show={showChips} onChipClick={handleChip} />
-          <InputBar
-            input={input}
-            setInput={setInput}
-            onSend={sendMessage}
-            disabled={typing}
-            pendingImage={pendingImage}
-            setPendingImage={setPendingImage}
-          />
+          <PdfChatPanel theme={theme} />
         </div>
       </div>
     )
