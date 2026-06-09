@@ -67,6 +67,15 @@
   white-space: nowrap;
   color: var(--text);
 }
+.pdf-badge-link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.pdf-badge-link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
 .pdf-badge-meta { color: var(--text-soft); font-size: 0.78rem; }
 .pdf-remove-btn {
   background: none; border: none;

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { uploadPDF, getPDFChatReplyStream, deletePDF } from '../api/pdfApi'
+import { uploadPDF, getPDFChatReplyStream, deletePDF, resolvePDFViewUrl, preloadPDF } from '../api/pdfApi'
 import Avatar from './Avatar'
 import Doodle from './Doodles'
 import '../styles/pdfChat.css'
@@ -9,12 +9,18 @@ import '../styles/pdfChat.css'
  *   { role: 'system', text: '__PDF_INFO__' + JSON.stringify(pdfInfo) }
  * On load we extract it from messages so pdfInfo survives page refresh / navigation.
  */
+const PDF_INFO_PREFIX = '__PDF_INFO__'
+
+function isPdfInfoMessage(m) {
+  return m?.text?.startsWith(PDF_INFO_PREFIX)
+}
+
 function extractPdfInfo(messages) {
-  const sys = messages?.find(
-    m => m.role === 'system' && m.text?.startsWith('__PDF_INFO__')
+  const marker = messages?.find(
+    m => (m.role === 'system' || m.role === 'bot') && isPdfInfoMessage(m)
   )
-  if (!sys) return null
-  try { return JSON.parse(sys.text.slice('__PDF_INFO__'.length)) } catch { return null }
+  if (!marker) return null
+  try { return JSON.parse(marker.text.slice(PDF_INFO_PREFIX.length)) } catch { return null }
 }
 
 export default function PdfChatPanel({ theme = 'dark', activeSession, setMessages, activeId }) {
@@ -23,6 +29,7 @@ export default function PdfChatPanel({ theme = 'dark', activeSession, setMessage
   const [input, setInput]         = useState('')
   const [thinking, setThinking]   = useState(false)
   const [dragOver, setDragOver]   = useState(false)
+  const [pdfReady, setPdfReady]   = useState(false)
 
   const fileInputRef = useRef(null)
   const bottomRef    = useRef(null)
@@ -32,8 +39,10 @@ export default function PdfChatPanel({ theme = 'dark', activeSession, setMessage
   // Derive pdfInfo from session messages — survives navigation & page refresh
   const pdfInfo = extractPdfInfo(messages)
 
-  // Visible chat messages (hide the system marker)
-  const visibleMessages = messages.filter(m => m.role !== 'system')
+  // Visible chat messages (hide PDF metadata markers)
+  const visibleMessages = messages.filter(
+    m => m.role !== 'system' && !isPdfInfoMessage(m)
+  )
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -43,6 +52,21 @@ export default function PdfChatPanel({ theme = 'dark', activeSession, setMessage
   useEffect(() => {
     setUploadErr('')
   }, [activeId])
+
+  // Ensure backend has the PDF loaded (from memory or Supabase Storage)
+  useEffect(() => {
+    if (!pdfInfo?.pdf_id) {
+      setPdfReady(false)
+      return
+    }
+    setPdfReady(false)
+    preloadPDF(pdfInfo.pdf_id)
+      .then(() => setPdfReady(true))
+      .catch(err => {
+        setUploadErr(err.message || 'PDF is no longer available. Please re-upload.')
+        setPdfReady(false)
+      })
+  }, [pdfInfo?.pdf_id])
 
   async function processFile(file) {
     if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
@@ -56,10 +80,11 @@ export default function PdfChatPanel({ theme = 'dark', activeSession, setMessage
       const info = await uploadPDF(file)
 
       // Persist pdfInfo as a hidden system message so it survives reload
+      // Use role 'bot' so Supabase messages table accepts it (system role is often blocked)
       const sysMsg = {
         id: crypto.randomUUID(),
-        role: 'system',
-        text: '__PDF_INFO__' + JSON.stringify(info),
+        role: 'bot',
+        text: PDF_INFO_PREFIX + JSON.stringify(info),
         createdAt: new Date().toISOString(),
       }
       const welcomeMsg = {
@@ -71,6 +96,7 @@ export default function PdfChatPanel({ theme = 'dark', activeSession, setMessage
         createdAt: new Date().toISOString(),
       }
       setMessages([sysMsg, welcomeMsg])
+      setPdfReady(true) // just uploaded — already in backend memory
     } catch (err) {
       setUploadErr(err.message)
     } finally {
@@ -95,7 +121,7 @@ export default function PdfChatPanel({ theme = 'dark', activeSession, setMessage
 
   async function handleSend() {
     const text = input.trim()
-    if (!text || thinking || !pdfInfo) return
+    if (!text || thinking || !pdfInfo || !pdfReady) return
 
     const userMsg = {
       id: crypto.randomUUID(),
@@ -186,6 +212,16 @@ export default function PdfChatPanel({ theme = 'dark', activeSession, setMessage
     setUploadErr('')
   }
 
+  async function handleOpenPdf(e) {
+    e.preventDefault()
+    try {
+      const url = await resolvePDFViewUrl(pdfInfo)
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      setUploadErr(err.message || 'Could not open PDF.')
+    }
+  }
+
   return (
     <div className="pdf-chat-panel" data-theme={theme}>
 
@@ -197,7 +233,14 @@ export default function PdfChatPanel({ theme = 'dark', activeSession, setMessage
         </span>
         {pdfInfo ? (
           <div className="pdf-badge">
-            <span className="pdf-badge-name">{pdfInfo.filename}</span>
+            <a
+              className="pdf-badge-name pdf-badge-link"
+              href="#"
+              onClick={handleOpenPdf}
+              title="Open PDF in browser"
+            >
+              {pdfInfo.filename}
+            </a>
             <span className="pdf-badge-meta">{pdfInfo.pages}p</span>
             <button className="pdf-remove-btn" onClick={handleRemovePdf} title="Remove PDF">✕</button>
           </div>
@@ -287,16 +330,20 @@ export default function PdfChatPanel({ theme = 'dark', activeSession, setMessage
         <textarea
           className="pdf-input"
           rows={2}
-          placeholder={pdfInfo ? 'Ask a question about the PDF…' : 'Upload a PDF first'}
+          placeholder={
+            !pdfInfo ? 'Upload a PDF first'
+            : !pdfReady ? 'Loading PDF…'
+            : 'Ask a question about the PDF…'
+          }
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={!pdfInfo || thinking}
+          disabled={!pdfInfo || !pdfReady || thinking}
         />
         <button
           className="pdf-send-btn"
           onClick={handleSend}
-          disabled={!pdfInfo || !input.trim() || thinking}
+          disabled={!pdfInfo || !pdfReady || !input.trim() || thinking}
         >
           {thinking ? '…' : '➤'}
         </button>

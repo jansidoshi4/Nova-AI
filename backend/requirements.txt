@@ -7,5 +7,6 @@ google-auth==2.40.3
 requests==2.32.5
 numpy>=1.24.0
 pypdf>=4.0.0
+supabase>=2.0.0
 # For proper embeddings (recommended — ~80MB download on first run):
 sentence-transformers>=2.7.0

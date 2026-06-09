@@ -87,6 +87,31 @@ export async function getPDFChatReplyStream(pdfId, history, onChunk) {
 }
 
 /**
+ * Ask the backend to load a PDF into memory (from RAM or Supabase Storage).
+ */
+export async function preloadPDF(pdfId) {
+  const res = await fetch(`${BACKEND_URL}/pdf/${pdfId}/preload`, { method: 'POST' })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || `PDF not available (${res.status})`)
+  }
+}
+
+/**
+ * Resolve a URL to open the uploaded PDF inline in the browser.
+ * Prefers a Supabase signed URL when storage_path is available.
+ */
+export async function resolvePDFViewUrl(pdfInfo) {
+  if (pdfInfo?.storage_path) {
+    const { data, error } = await supabase.storage
+      .from('pdfs')
+      .createSignedUrl(pdfInfo.storage_path, 3600)
+    if (!error && data?.signedUrl) return data.signedUrl
+  }
+  return `${BACKEND_URL}/pdf/${pdfInfo.pdf_id}/file`
+}
+
+/**
  * Delete a PDF from the backend's in-memory store.
  */
 export async function deletePDF(pdfId) {

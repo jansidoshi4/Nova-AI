@@ -1,7 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
 import Doodle from './Doodles'
+import StreamingSessionLabel from './StreamingSessionLabel'
 
-function SessionItem({ session, isActive, onSelect, onRename, onDelete, onClose }) {
+function sessionHasUserMessage(session) {
+  return session.messages?.some(m => m.role === 'user')
+}
+
+function SessionItem({ session, isActive, onSelect, onRename, onDelete, onClose, activeDraftTitle, streamActiveTitle }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [nameVal, setNameVal] = useState(session.title)
@@ -40,6 +45,12 @@ function SessionItem({ session, isActive, onSelect, onRename, onDelete, onClose 
     if (e.key === 'Escape') setRenaming(false)
   }
 
+  const hasUser = sessionHasUserMessage(session)
+  const useStreamingLabel = isActive && streamActiveTitle
+  const streamingTarget = useStreamingLabel
+    ? (hasUser ? session.title : (activeDraftTitle || ''))
+    : session.title
+
   return (
     <div className={`session-item-wrap${isActive ? ' active' : ''}${menuOpen ? ' menu-open' : ''}`} ref={menuRef}>
       <button
@@ -57,6 +68,8 @@ function SessionItem({ session, isActive, onSelect, onRename, onDelete, onClose 
             onKeyDown={handleRenameKey}
             onClick={e => e.stopPropagation()}
           />
+        ) : useStreamingLabel ? (
+          <StreamingSessionLabel target={streamingTarget} animate />
         ) : (
           <span className="session-label">{session.title}</span>
         )}
@@ -87,7 +100,10 @@ function SessionItem({ session, isActive, onSelect, onRename, onDelete, onClose 
   )
 }
 
-export default function Sidebar({ isOpen, sessions, activeId, onSelect, onNew, onClose, onRename, onDelete }) {
+export default function Sidebar({
+  isOpen, sessions, activeId, onSelect, onNew, onClose, onRename, onDelete,
+  activeDraftTitle = '', streamActiveTitle = false,
+}) {
   return (
     <>
       {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
@@ -119,6 +135,8 @@ export default function Sidebar({ isOpen, sessions, activeId, onSelect, onNew, o
               onRename={onRename}
               onDelete={onDelete}
               onClose={onClose}
+              activeDraftTitle={activeDraftTitle}
+              streamActiveTitle={streamActiveTitle}
             />
           ))}
         </div>

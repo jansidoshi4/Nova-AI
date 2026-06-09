@@ -14,7 +14,7 @@ import httpx
 import numpy as np
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
@@ -36,6 +36,7 @@ OPENROUTER_KEY = os.getenv("OPENROUTER_KEY")
 OPENROUTER_URL = "https://openrouter.ai/api/v1"
 EMBED_MODEL    = "openai/text-embedding-3-small"
 LLM_MODEL      = "google/gemini-2.5-flash"
+PDF_BUCKET     = "pdfs"
 
 CHUNK_SIZE    = 500
 CHUNK_OVERLAP = 100
@@ -102,47 +103,30 @@ def score_to_confidence(score: float) -> str:
         return "low"
 
 
-async def retrieve_chunks(pdf_id: str, question: str) -> tuple[list[str], str]:
-    record = PDF_STORE.get(pdf_id)
-    if not record:
-        return [], "low"
-    q_vec = (await embed_texts_api([question]))[0]
-    scores = cosine_similarity(q_vec, record["embeddings"])
-    indices = np.argsort(scores)[::-1][:TOP_K]
-    top_score = float(scores[indices[0]])
-    confidence = score_to_confidence(top_score)
-    chunks = [record["chunks"][i] for i in indices]
-    return chunks, confidence
+def get_pdf_session_row(pdf_id: str) -> Optional[dict]:
+    result = get_supabase().table("pdf_sessions").select("*").eq("id", pdf_id).execute()
+    rows = result.data or []
+    return rows[0] if rows else None
 
 
-def build_rag_messages(context_chunks: list[str], history: list[PDFChatMessage]) -> list[dict]:
-    context_str = "\n\n---\n\n".join(context_chunks)
-    system_prompt = f"""You are Nova, a helpful AI assistant. You answer questions about the uploaded PDF document.
-
-Use the context below as your PRIMARY source — reference it when answering.
-If the PDF context doesn't fully cover the question, supplement with your own knowledge and clearly say so.
-
-Context from the PDF:
-{context_str}
-"""
-    messages = [{"role": "system", "content": system_prompt}]
-    for msg in history:
-        role = "assistant" if msg.role == "bot" else "user"
-        messages.append({"role": role, "content": msg.text or ""})
-    return messages
+def upload_pdf_to_storage(user_id: str, pdf_id: str, raw_bytes: bytes) -> str:
+    storage_path = f"{user_id}/{pdf_id}.pdf"
+    get_supabase().storage.from_(PDF_BUCKET).upload(
+        path=storage_path,
+        file=raw_bytes,
+        file_options={"content-type": "application/pdf", "upsert": "true"},
+    )
+    return storage_path
 
 
-@router.post("/pdf/upload")
-async def upload_pdf(
-    file: UploadFile = File(...),
-    user_id: Optional[str] = Form(None),   # <-- new: frontend passes this
-):
+def download_pdf_from_storage(storage_path: str) -> bytes:
+    return get_supabase().storage.from_(PDF_BUCKET).download(storage_path)
+
+
+async def process_pdf_bytes(raw_bytes: bytes, filename: str) -> dict:
     if PdfReader is None:
         raise HTTPException(status_code=500, detail="pypdf not installed. Run: pip install pypdf")
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
-    raw_bytes = await file.read()
     reader = PdfReader(io.BytesIO(raw_bytes))
     full_text = "".join((page.extract_text() or "") + "\n" for page in reader.pages)
 
@@ -152,50 +136,145 @@ async def upload_pdf(
     chunks = chunk_text(full_text)
     embeddings = await embed_texts_api(chunks)
 
-    pdf_id = str(uuid.uuid4())
-    PDF_STORE[pdf_id] = {
+    return {
         "chunks": chunks,
         "embeddings": embeddings,
-        "filename": file.filename,
+        "filename": filename,
         "pages": len(reader.pages),
+        "raw_bytes": raw_bytes,
     }
 
-    # --- Save to Supabase pdf_sessions table ---
+
+async def ensure_pdf_loaded(pdf_id: str) -> dict:
+    if pdf_id in PDF_STORE:
+        return PDF_STORE[pdf_id]
+
+    row = get_pdf_session_row(pdf_id)
+    if not row or not row.get("storage_path"):
+        raise HTTPException(status_code=404, detail="PDF not found. Please re-upload.")
+
+    try:
+        raw_bytes = download_pdf_from_storage(row["storage_path"])
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"PDF file not found in storage: {e}")
+
+    record = await process_pdf_bytes(raw_bytes, row.get("filename", "document.pdf"))
+    PDF_STORE[pdf_id] = record
+    return record
+
+
+async def retrieve_chunks(pdf_id: str, question: str) -> tuple[list[str], str]:
+    record = await ensure_pdf_loaded(pdf_id)
+    q_vec = (await embed_texts_api([question]))[0]
+    scores = cosine_similarity(q_vec, record["embeddings"])
+    indices = np.argsort(scores)[::-1][:TOP_K]
+    top_score = float(scores[indices[0]])
+    confidence = score_to_confidence(top_score)
+    chunks = [record["chunks"][i] for i in indices]
+    return chunks, confidence
+
+
+def filter_chat_history(history: list[PDFChatMessage]) -> list[PDFChatMessage]:
+    """Drop PDF metadata markers and upload confirmations from LLM history."""
+    filtered = []
+    for msg in history:
+        text = msg.text or ""
+        if text.startswith("__PDF_INFO__"):
+            continue
+        if msg.role == "bot" and "uploaded successfully" in text.lower():
+            continue
+        filtered.append(msg)
+    return filtered
+
+
+def build_rag_messages(context_chunks: list[str], history: list[PDFChatMessage]) -> list[dict]:
+    context_str = "\n\n---\n\n".join(context_chunks)
+    system_prompt = f"""You are Nova, a PDF document assistant.
+
+The user uploaded a PDF. Its extracted text is provided below in "Document Context".
+You HAVE full access to this content — it has already been read and extracted for you.
+
+RULES:
+- ALWAYS answer using the Document Context below.
+- NEVER say you cannot read, open, or access PDFs or documents.
+- If the context is partial, answer with what is available and note what is missing.
+
+Document Context:
+{context_str}
+"""
+    messages = [{"role": "system", "content": system_prompt}]
+    for msg in filter_chat_history(history):
+        role = "assistant" if msg.role == "bot" else "user"
+        messages.append({"role": role, "content": msg.text or ""})
+    return messages
+
+
+@router.post("/pdf/upload")
+async def upload_pdf(
+    file: UploadFile = File(...),
+    user_id: Optional[str] = Form(None),
+):
+    if PdfReader is None:
+        raise HTTPException(status_code=500, detail="pypdf not installed. Run: pip install pypdf")
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
+
+    raw_bytes = await file.read()
+    record = await process_pdf_bytes(raw_bytes, file.filename)
+
+    pdf_id = str(uuid.uuid4())
+    PDF_STORE[pdf_id] = record
+
+    storage_path = None
     if user_id:
         try:
+            storage_path = upload_pdf_to_storage(user_id, pdf_id, raw_bytes)
             get_supabase().table("pdf_sessions").insert({
                 "id": pdf_id,
                 "user_id": user_id,
                 "filename": file.filename,
                 "pdf_id": pdf_id,
-                "pages": len(reader.pages),
+                "pages": record["pages"],
+                "storage_path": storage_path,
             }).execute()
         except Exception as e:
-            # Don't fail the upload if Supabase save fails — just log it
-            print(f"[Supabase] Failed to save pdf_session: {e}")
+            print(f"[Supabase] Failed to save pdf_session or storage: {e}")
 
     return {
         "pdf_id": pdf_id,
         "filename": file.filename,
-        "pages": len(reader.pages),
-        "chunks": len(chunks),
+        "pages": record["pages"],
+        "chunks": len(record["chunks"]),
         "embedding_method": f"OpenRouter ({EMBED_MODEL})",
+        "storage_path": storage_path,
     }
+
+
+@router.post("/pdf/{pdf_id}/preload")
+async def preload_pdf(pdf_id: str):
+    """Load a PDF into memory from RAM or Supabase Storage (used after page refresh)."""
+    await ensure_pdf_loaded(pdf_id)
+    return {"status": "ok"}
 
 
 @router.post("/pdf/chat")
 async def pdf_chat(req: PDFChatRequest):
     if not OPENROUTER_KEY:
         raise HTTPException(status_code=500, detail="OPENROUTER_KEY not set in .env")
-    if req.pdf_id not in PDF_STORE:
-        raise HTTPException(status_code=404, detail="PDF not found. Please re-upload.")
 
-    user_messages = [m for m in req.history if m.role == "user"]
+    user_messages = [m for m in filter_chat_history(req.history) if m.role == "user"]
     if not user_messages:
         raise HTTPException(status_code=400, detail="No user question found in history.")
 
     latest_question = user_messages[-1].text or ""
     relevant_chunks, confidence = await retrieve_chunks(req.pdf_id, latest_question)
+
+    if not relevant_chunks or not any(c.strip() for c in relevant_chunks):
+        raise HTTPException(
+            status_code=422,
+            detail="Could not read content from this PDF. Try re-uploading the file.",
+        )
+
     messages = build_rag_messages(relevant_chunks, req.history)
 
     payload = {
@@ -237,12 +316,27 @@ async def pdf_chat(req: PDFChatRequest):
     return StreamingResponse(stream_response(), media_type="text/event-stream")
 
 
+@router.get("/pdf/{pdf_id}/file")
+async def get_pdf_file(pdf_id: str):
+    record = await ensure_pdf_loaded(pdf_id)
+    filename = record.get("filename", "document.pdf")
+    return Response(
+        content=record["raw_bytes"],
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
 @router.delete("/pdf/{pdf_id}")
 async def delete_pdf(pdf_id: str):
     PDF_STORE.pop(pdf_id, None)
-    # Also remove from Supabase
+
     try:
+        row = get_pdf_session_row(pdf_id)
+        if row and row.get("storage_path"):
+            get_supabase().storage.from_(PDF_BUCKET).remove([row["storage_path"]])
         get_supabase().table("pdf_sessions").delete().eq("id", pdf_id).execute()
     except Exception as e:
-        print(f"[Supabase] Failed to delete pdf_session: {e}")
+        print(f"[Supabase] Failed to delete pdf_session or storage: {e}")
+
     return {"status": "deleted"}

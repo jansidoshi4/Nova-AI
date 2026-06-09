@@ -1021,6 +1021,25 @@ textarea:focus {
 textarea::placeholder { color: var(--text-hint); }
 textarea:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.input-wrap--sql textarea {
+  padding-right: 84px;
+}
+
+.er-btn {
+  position: absolute; right: 44px; bottom: 8px;
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted, rgba(0,0,0,0.06));
+  border: 1px solid var(--border, rgba(0,0,0,0.1));
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  color: var(--text);
+}
+.er-btn:hover:not(:disabled) { transform: scale(1.06); background: var(--surface, #f0f0f0); }
+.er-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.er-btn i { font-size: 16px; }
+
 .send-btn {
   position: absolute; right: 8px; bottom: 8px;
   width: 32px; height: 32px;
@@ -1034,6 +1053,64 @@ textarea:disabled { opacity: 0.6; cursor: not-allowed; }
 .send-btn:active { transform: scale(0.93); }
 .send-btn:disabled { background: var(--text-hint); cursor: default; }
 .send-btn i { font-size: 15px; color: var(--btn-primary-text); }
+
+/* ── ER diagram in chat ── */
+.bubble-er-caption {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.er-diagram-block {
+  border: 1px solid var(--border, rgba(0,0,0,0.1));
+  border-radius: var(--radius-sm);
+  background: var(--bg, #fff);
+  overflow: hidden;
+}
+.er-diagram-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, rgba(0,0,0,0.08));
+  background: var(--surface-muted, rgba(0,0,0,0.03));
+}
+.er-diagram-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-soft, #666);
+}
+.er-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--border, rgba(0,0,0,0.12));
+  border-radius: var(--radius-pill, 999px);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.er-copy-btn:hover { background: var(--surface-muted, rgba(0,0,0,0.05)); }
+.er-copy-btn--done { color: #2e7d32; border-color: #2e7d32; }
+.er-copy-btn i { font-size: 13px; }
+.er-diagram-svg {
+  padding: 12px;
+  overflow-x: auto;
+}
+.er-diagram-svg svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.er-diagram-fallback {
+  margin: 0;
+  padding: 12px;
+  font-size: 0.75rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
 
 /* ── Image inside bubble ── */
 .bubble-img {

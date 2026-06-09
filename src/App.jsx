@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import ChatHeader from './components/ChatHeader'
 import MessageList from './components/MessageList'
 import SuggestionChips from './components/SuggestionChips'
@@ -13,7 +14,9 @@ import Doodle from './components/Doodles'
 import { useAuth } from './hooks/useAuth'
 import { useChat } from './hooks/useChat'
 import { useChatHistory } from './hooks/useChatHistory'
+import { useUserSchema } from './hooks/useUserSchema'
 import { useQueryRunner } from './hooks/useQueryRunner'
+import { buildMermaidEr, ER_DIAGRAM_PREFIX } from './utils/erDiagram'
 
 function isSQL(text) {
   if (!text) return false
@@ -27,42 +30,25 @@ function normalizeTheme(stored) {
   return THEMES.includes(stored) ? stored : 'light'
 }
 
-export default function App() {
-  const [currentScreen, setCurrentScreen] = useState('dashboard')
+function openChatInNewTab(path) {
+  window.open(`${window.location.origin}${path}`, '_blank', 'noopener,noreferrer')
+}
+
+function SqlChatPage({
+  user, signOut, theme, themeLabel, cycleTheme,
+  sqlHistory, schema, setSchema, clearSchema,
+}) {
+  const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [theme, setTheme] = useState(() => normalizeTheme(localStorage.getItem('nova-theme')))
-  const [schema, setSchema] = useState(() => localStorage.getItem('schema') || '')
-  const [pdfFile, setPdfFile] = useState(null)
 
-  useEffect(() => { localStorage.setItem('schema', schema) }, [schema])
-  useEffect(() => {
-    localStorage.setItem('nova-theme', theme)
-    document.documentElement.setAttribute('data-theme', theme)
-  }, [theme])
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-  }, [])
-
-  const { user, loading, signIn, signUp, signInWithGoogle, signOut } = useAuth()
-
-  // Pass user.id directly — useChatHistory now uses Supabase
-  // type prop lets us store sql vs pdf sessions separately in the same table
-  const sqlHistory = useChatHistory(user?.id, 'sql')
-  const pdfHistory = useChatHistory(user?.id, 'pdf')
-
-  const {
-    sessions, activeId, activeSession,
-    setMessages, newChat, selectSession,
-    renameSession, deleteSession,
-  } = currentScreen === 'pdf-chat' ? pdfHistory : sqlHistory
-
+  const { sessions, activeId, activeSession, setMessages, newChat, selectSession, renameSession, deleteSession } = sqlHistory
   const messages = activeSession?.messages || []
+  const hasUserMessage = messages.some(m => m.role === 'user')
 
   const {
     input, setInput, typing, showChips,
     sendMessage, handleChip,
-    pendingImage, setPendingImage, error,
+    pendingImage, setPendingImage,
   } = useChat(messages, setMessages, activeId, schema)
 
   const lastSQL = useMemo(() => {
@@ -72,16 +58,36 @@ export default function App() {
 
   const { result, error: queryError } = useQueryRunner(schema, lastSQL)
 
-  const cycleTheme = () => {
-    const idx = THEMES.indexOf(theme)
-    setTheme(THEMES[(idx + 1) % THEMES.length])
+  const resetWorkspace = async () => {
+    if (!window.confirm('Clear schema, chat history, and start a new workspace?')) return
+    await clearSchema()
+    newChat()
   }
 
-  const resetWorkspace = () => {
-    if (!window.confirm('Clear schema, chat history, and start a new workspace?')) return
-    setSchema('')
-    localStorage.removeItem('schema')
-    newChat()
+  const handleErDiagram = () => {
+    if (!schema.trim()) return
+    const mermaid = buildMermaidEr(schema)
+    if (!mermaid) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: 'bot',
+          text: '⚠️ Could not parse any tables from your schema. Make sure it includes CREATE TABLE statements.',
+          createdAt: new Date().toISOString(),
+        },
+      ])
+      return
+    }
+    setMessages(prev => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        role: 'bot',
+        text: ER_DIAGRAM_PREFIX + mermaid,
+        createdAt: new Date().toISOString(),
+      },
+    ])
   }
 
   const loadSampleSchema = () => {
@@ -106,82 +112,19 @@ INSERT INTO Courses VALUES
 (103, 'DBMS', 2);`)
   }
 
-  if (loading) {
-    return null // wait silently — avoids flashing AuthScreen while session is resolving
-  }
-
-  if (!user) {
-    return (
-      <AuthScreen
-        onSignIn={signIn}
-        onSignUp={signUp}
-        onGoogle={signInWithGoogle}
-        themeLabel={THEME_LABELS[theme]}
-        onCycleTheme={cycleTheme}
-      />
-    )
-  }
-
-  if (currentScreen === 'dashboard') {
-    return (
-      <Dashboard
-        user={user}
-        onSignOut={signOut}
-        themeLabel={THEME_LABELS[theme]}
-        onCycleTheme={cycleTheme}
-        onOpenSQLChat={() => setCurrentScreen('sql-chat')}
-        onOpenPDFChat={() => setCurrentScreen('pdf-chat')}
-      />
-    )
-  }
-
-  if (currentScreen === 'pdf-chat') {
-    return (
-      <div className="page">
-        <Sidebar
-          isOpen={sidebarOpen}
-          sessions={pdfHistory.sessions}
-          activeId={pdfHistory.activeId}
-          onSelect={pdfHistory.selectSession}
-          onNew={() => { pdfHistory.newChat(); setSidebarOpen(false) }}
-          onClose={() => setSidebarOpen(false)}
-          onRename={pdfHistory.renameSession}
-          onDelete={pdfHistory.deleteSession}
-        />
-
-        <div className="chat-wrap">
-          <ChatHeader
-            user={user}
-            onSignOut={signOut}
-            onToggleSidebar={() => setSidebarOpen(o => !o)}
-            themeLabel={THEME_LABELS[theme]}
-            onCycleTheme={cycleTheme}
-            onBackToDashboard={() => setCurrentScreen('dashboard')}
-          />
-
-          <PdfChatPanel
-            theme={theme}
-            activeSession={pdfHistory.activeSession}
-            setMessages={pdfHistory.setMessages}
-            activeId={pdfHistory.activeId}
-          />
-        </div>
-      </div>
-    )
-  }
-
-  // sql-chat screen
   return (
     <div className="page">
       <Sidebar
         isOpen={sidebarOpen}
-        sessions={sqlHistory.sessions}
-        activeId={sqlHistory.activeId}
-        onSelect={sqlHistory.selectSession}
-        onNew={() => { sqlHistory.newChat(); setSidebarOpen(false) }}
+        sessions={sessions}
+        activeId={activeId}
+        onSelect={selectSession}
+        onNew={() => { newChat(); setSidebarOpen(false) }}
         onClose={() => setSidebarOpen(false)}
-        onRename={sqlHistory.renameSession}
-        onDelete={sqlHistory.deleteSession}
+        onRename={renameSession}
+        onDelete={deleteSession}
+        activeDraftTitle={hasUserMessage ? '' : input}
+        streamActiveTitle
       />
 
       <div className="chat-wrap">
@@ -189,9 +132,9 @@ INSERT INTO Courses VALUES
           user={user}
           onSignOut={signOut}
           onToggleSidebar={() => setSidebarOpen(o => !o)}
-          themeLabel={THEME_LABELS[theme]}
+          themeLabel={themeLabel}
           onCycleTheme={cycleTheme}
-          onBackToDashboard={() => setCurrentScreen('dashboard')}
+          onBackToDashboard={() => navigate('/')}
         />
         <div className="schema-input-area">
           <textarea
@@ -213,12 +156,15 @@ INSERT INTO Courses VALUES
         <MessageList messages={messages} typing={typing} />
         <SuggestionChips show={showChips} onChipClick={handleChip} />
         <InputBar
+          mode="sql"
           input={input}
           setInput={setInput}
           onSend={sendMessage}
           disabled={typing}
           pendingImage={pendingImage}
           setPendingImage={setPendingImage}
+          onErDiagram={handleErDiagram}
+          erDisabled={!schema.trim()}
         />
       </div>
 
@@ -227,5 +173,132 @@ INSERT INTO Courses VALUES
         <ResultTable result={result} error={queryError} sql={lastSQL} />
       </div>
     </div>
+  )
+}
+
+function PdfChatPage({ user, signOut, theme, themeLabel, cycleTheme, pdfHistory }) {
+  const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  return (
+    <div className="page">
+      <Sidebar
+        isOpen={sidebarOpen}
+        sessions={pdfHistory.sessions}
+        activeId={pdfHistory.activeId}
+        onSelect={pdfHistory.selectSession}
+        onNew={() => { pdfHistory.newChat(); setSidebarOpen(false) }}
+        onClose={() => setSidebarOpen(false)}
+        onRename={pdfHistory.renameSession}
+        onDelete={pdfHistory.deleteSession}
+      />
+
+      <div className="chat-wrap">
+        <ChatHeader
+          user={user}
+          onSignOut={signOut}
+          onToggleSidebar={() => setSidebarOpen(o => !o)}
+          themeLabel={themeLabel}
+          onCycleTheme={cycleTheme}
+          onBackToDashboard={() => navigate('/')}
+        />
+
+        <PdfChatPanel
+          theme={theme}
+          activeSession={pdfHistory.activeSession}
+          setMessages={pdfHistory.setMessages}
+          activeId={pdfHistory.activeId}
+        />
+      </div>
+    </div>
+  )
+}
+
+export default function App() {
+  const [theme, setTheme] = useState(() => normalizeTheme(localStorage.getItem('nova-theme')))
+
+  useEffect(() => {
+    localStorage.setItem('nova-theme', theme)
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [])
+
+  const { user, loading, signIn, signUp, signInWithGoogle, signOut } = useAuth()
+  const { schema, setSchema, clearSchema } = useUserSchema(user?.id)
+  const sqlHistory = useChatHistory(user?.id, 'sql')
+  const pdfHistory = useChatHistory(user?.id, 'pdf')
+
+  const cycleTheme = () => {
+    const idx = THEMES.indexOf(theme)
+    setTheme(THEMES[(idx + 1) % THEMES.length])
+  }
+
+  const themeLabel = THEME_LABELS[theme]
+
+  if (loading) {
+    return null
+  }
+
+  if (!user) {
+    return (
+      <AuthScreen
+        onSignIn={signIn}
+        onSignUp={signUp}
+        onGoogle={signInWithGoogle}
+        themeLabel={themeLabel}
+        onCycleTheme={cycleTheme}
+      />
+    )
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={(
+          <Dashboard
+            user={user}
+            onSignOut={signOut}
+            themeLabel={themeLabel}
+            onCycleTheme={cycleTheme}
+            onOpenSQLChat={() => openChatInNewTab('/sql')}
+            onOpenPDFChat={() => openChatInNewTab('/pdf')}
+          />
+        )}
+      />
+      <Route
+        path="/sql"
+        element={(
+          <SqlChatPage
+            user={user}
+            signOut={signOut}
+            theme={theme}
+            themeLabel={themeLabel}
+            cycleTheme={cycleTheme}
+            sqlHistory={sqlHistory}
+            schema={schema}
+            setSchema={setSchema}
+            clearSchema={clearSchema}
+          />
+        )}
+      />
+      <Route
+        path="/pdf"
+        element={(
+          <PdfChatPage
+            user={user}
+            signOut={signOut}
+            theme={theme}
+            themeLabel={themeLabel}
+            cycleTheme={cycleTheme}
+            pdfHistory={pdfHistory}
+          />
+        )}
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }

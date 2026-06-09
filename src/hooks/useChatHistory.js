@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
-const INITIAL_BOT_MSG = () => ({
+import { SQL_WELCOME_TEXT } from '../utils/erDiagram'
+
+const SQL_INITIAL_BOT_MSG = () => ({
   id: crypto.randomUUID(),
   role: 'bot',
-  text: "Hey! I'm Nova, your AI assistant. How can I help you today? You can also send me images!",
-  doodle: 'wave',
+  text: SQL_WELCOME_TEXT,
+  doodle: 'database',
   createdAt: new Date().toISOString(),
 })
 
@@ -40,7 +42,7 @@ export function useChatHistory(userId, type = 'sql') {
     const initialMessages = []
 
     if (t === 'sql') {
-      const botMsg = INITIAL_BOT_MSG()
+      const botMsg = SQL_INITIAL_BOT_MSG()
       const { error: msgErr } = await supabase.from('messages').insert({
         id: botMsg.id,
         session_id: data.id,
@@ -130,12 +132,15 @@ export function useChatHistory(userId, type = 'sql') {
 
       const newMessages = typeof updater === 'function' ? updater(s.messages) : updater
 
-      // Derive title from first real user message (skip system marker messages)
+      // Derive title from the first user message; PDF chats stay "New Chat" until then
       const firstUser = newMessages.find(m => m.role === 'user')
       const titleText = firstUser?.text?.trim() || ''
-      const title = titleText
-        ? titleText.slice(0, 30) + (titleText.length > 30 ? '…' : '')
-        : s.title // keep existing title (e.g. 'New Chat') — don't overwrite with blank
+      let title
+      if (titleText) {
+        title = titleText.slice(0, 30) + (titleText.length > 30 ? '…' : '')
+      } else {
+        title = 'New Chat'
+      }
 
       // Only persist messages that are fully done (not streaming) and not already saved
       const toInsert = newMessages.filter(m =>
