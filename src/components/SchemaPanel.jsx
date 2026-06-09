@@ -1,4 +1,5 @@
 import React from 'react'
+import Doodle from './Doodles'
 
 export default function SchemaPanel({ schema }) {
   const tables = parseSchema(schema)
@@ -6,7 +7,7 @@ export default function SchemaPanel({ schema }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div className="schema-panel-header">
-        <span className="schema-panel-icon">🗄️</span>
+        <span className="schema-panel-icon"><Doodle name="database" size={20} /></span>
         <span>Schema</span>
       </div>
       <div className="schema-panel-body" style={{ flex: 1, overflowY: 'auto' }}>
@@ -15,7 +16,10 @@ export default function SchemaPanel({ schema }) {
         ) : tables.length > 0 ? (
           tables.map((table, i) => (
             <div key={i} className="schema-table-block">
-              <div className="schema-table-name">📋 {table.name}</div>
+              <div className="schema-table-name">
+                <Doodle name="clipboard" size={16} />
+                {table.name}
+              </div>
               <div className="schema-columns">
                 {table.columns.map((col, j) => (
                   <div key={j} className="schema-column">

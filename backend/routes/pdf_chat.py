@@ -2,17 +2,23 @@
 PDF Chat Route — RAG with OpenRouter Embeddings + Confidence Scores
 """
 
+from dotenv import load_dotenv
+from pathlib import Path
+
+load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+
 import io
 import os
 import uuid
 import httpx
 import numpy as np
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 try:
     from pypdf import PdfReader
@@ -36,6 +42,13 @@ CHUNK_OVERLAP = 100
 TOP_K         = 5
 
 PDF_STORE: dict[str, dict] = {}
+
+# --- Supabase client (uses service role key to bypass RLS) ---
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+def get_supabase() -> Client:
+    return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
 class PDFChatMessage(BaseModel):
@@ -81,7 +94,6 @@ def cosine_similarity(q_vec: np.ndarray, doc_mat: np.ndarray) -> np.ndarray:
 
 
 def score_to_confidence(score: float) -> str:
-    """Convert top cosine similarity score to High/Medium/Low label."""
     if score >= 0.75:
         return "high"
     elif score >= 0.45:
@@ -91,7 +103,6 @@ def score_to_confidence(score: float) -> str:
 
 
 async def retrieve_chunks(pdf_id: str, question: str) -> tuple[list[str], str]:
-    """Returns (chunks, confidence_level)."""
     record = PDF_STORE.get(pdf_id)
     if not record:
         return [], "low"
@@ -122,7 +133,10 @@ Context from the PDF:
 
 
 @router.post("/pdf/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_pdf(
+    file: UploadFile = File(...),
+    user_id: Optional[str] = Form(None),   # <-- new: frontend passes this
+):
     if PdfReader is None:
         raise HTTPException(status_code=500, detail="pypdf not installed. Run: pip install pypdf")
     if not file.filename.lower().endswith(".pdf"):
@@ -145,6 +159,20 @@ async def upload_pdf(file: UploadFile = File(...)):
         "filename": file.filename,
         "pages": len(reader.pages),
     }
+
+    # --- Save to Supabase pdf_sessions table ---
+    if user_id:
+        try:
+            get_supabase().table("pdf_sessions").insert({
+                "id": pdf_id,
+                "user_id": user_id,
+                "filename": file.filename,
+                "pdf_id": pdf_id,
+                "pages": len(reader.pages),
+            }).execute()
+        except Exception as e:
+            # Don't fail the upload if Supabase save fails — just log it
+            print(f"[Supabase] Failed to save pdf_session: {e}")
 
     return {
         "pdf_id": pdf_id,
@@ -179,7 +207,6 @@ async def pdf_chat(req: PDFChatRequest):
     }
 
     async def stream_response():
-        # Send confidence as very first chunk so frontend can pick it up
         yield f'data: {{"choices": [{{"delta": {{"content": "__CONF:{confidence}__"}}}}]}}\n\n'
 
         async with httpx.AsyncClient(timeout=None) as client:
@@ -213,4 +240,9 @@ async def pdf_chat(req: PDFChatRequest):
 @router.delete("/pdf/{pdf_id}")
 async def delete_pdf(pdf_id: str):
     PDF_STORE.pop(pdf_id, None)
+    # Also remove from Supabase
+    try:
+        get_supabase().table("pdf_sessions").delete().eq("id", pdf_id).execute()
+    except Exception as e:
+        print(f"[Supabase] Failed to delete pdf_session: {e}")
     return {"status": "deleted"}

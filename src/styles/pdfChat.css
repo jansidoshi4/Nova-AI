@@ -1,5 +1,5 @@
 /* ================================================================
-   PDF Chat Panel — Nova AI
+   PDF Chat Panel — monochrome theme
    ================================================================ */
 
 .pdf-chat-panel {
@@ -8,50 +8,54 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: var(--pdf-bg, #0f0f1a);
-  color: var(--pdf-text, #e2e8f0);
-  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
 }
 
-/* ── Header ── */
 .pdf-chat-header {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 14px 20px;
-  background: rgba(255,255,255,0.04);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   flex-wrap: wrap;
+  backdrop-filter: blur(12px);
 }
 
 .pdf-chat-title {
   font-weight: 700;
   font-size: 1rem;
-  color: var(--pdf-accent, #a855f7);
+  color: var(--text);
+  letter-spacing: -0.02em;
 }
 
 .pdf-upload-btn {
   padding: 7px 16px;
-  background: var(--pdf-accent, #a855f7);
-  color: #fff;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   border: none;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
   transition: opacity 0.2s, transform 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
-.pdf-upload-btn:hover:not(:disabled) { opacity: 0.85; transform: translateY(-1px); }
+.pdf-upload-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
 .pdf-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .pdf-badge {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 20px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
   padding: 5px 12px;
   font-size: 0.82rem;
 }
@@ -61,28 +65,26 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #e2e8f0;
+  color: var(--text);
 }
-.pdf-badge-meta { color: #64748b; font-size: 0.78rem; }
+.pdf-badge-meta { color: var(--text-soft); font-size: 0.78rem; }
 .pdf-remove-btn {
   background: none; border: none;
-  color: #64748b; cursor: pointer;
+  color: var(--text-hint); cursor: pointer;
   font-size: 0.9rem; padding: 0 2px; line-height: 1;
   transition: color 0.2s;
 }
-.pdf-remove-btn:hover { color: #ef4444; }
+.pdf-remove-btn:hover { color: var(--window-red); }
 
-/* ── Error ── */
 .pdf-error {
-  background: #3b0f0f;
-  color: #fca5a5;
+  background: rgba(198, 40, 40, 0.08);
+  color: #c62828;
   padding: 8px 20px;
   font-size: 0.85rem;
-  border-bottom: 1px solid #7f1d1d;
+  border-bottom: 1px solid rgba(198, 40, 40, 0.2);
   flex-shrink: 0;
 }
 
-/* ── Messages area ── */
 .pdf-messages {
   flex: 1;
   min-height: 0;
@@ -93,11 +95,8 @@
   gap: 16px;
 }
 .pdf-messages::-webkit-scrollbar { width: 4px; }
-.pdf-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+.pdf-messages::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
 
-/* ════════════════════════════════════════════════
-   FEATURE 1 — Glassmorphism drag-and-drop zone
-   ════════════════════════════════════════════════ */
 .pdf-drop-zone {
   position: relative;
   display: flex;
@@ -108,39 +107,35 @@
   flex: 1;
   margin: 12px 0;
   padding: 48px 32px;
-  border-radius: 24px;
-  border: 2px dashed rgba(168, 85, 247, 0.35);
-  background: rgba(168, 85, 247, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-xl);
+  border: 1.5px dashed var(--border-strong);
+  background: var(--surface-muted);
   cursor: pointer;
   transition: border-color 0.3s, background 0.3s, transform 0.2s;
   overflow: hidden;
   text-align: center;
 }
 .pdf-drop-zone:hover {
-  border-color: rgba(168, 85, 247, 0.7);
-  background: rgba(168, 85, 247, 0.08);
+  border-color: var(--text);
+  background: var(--surface);
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(168, 85, 247, 0.15);
 }
 .pdf-drop-zone--active {
-  border-color: var(--pdf-accent, #a855f7) !important;
-  background: rgba(168, 85, 247, 0.14) !important;
+  border-color: var(--text) !important;
+  background: var(--surface) !important;
   transform: scale(1.01) !important;
 }
 
-/* Subtle glow ring (no animation) */
 .pdf-drop-glow {
   position: absolute;
   inset: 0;
-  border-radius: 24px;
+  border-radius: var(--radius-xl);
   background: transparent;
   opacity: 0;
   transition: opacity 0.25s;
   pointer-events: none;
   z-index: 0;
-  box-shadow: inset 0 0 0 1.5px rgba(168, 85, 247, 0.5);
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
 }
 .pdf-drop-zone:hover .pdf-drop-glow,
 .pdf-drop-zone--active .pdf-drop-glow { opacity: 1; }
@@ -149,53 +144,45 @@
   font-size: 3.5rem;
   position: relative;
   z-index: 1;
-  animation: pdf-float 3s ease-in-out infinite;
 }
-@keyframes pdf-float {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-8px); }
-}
-
 .pdf-drop-title {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #e2e8f0;
+  color: var(--text);
   position: relative; z-index: 1;
 }
 .pdf-drop-sub {
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: var(--text-soft);
   position: relative; z-index: 1;
 }
 .pdf-drop-hint {
   font-size: 0.78rem;
-  color: #64748b;
+  color: var(--text-hint);
   max-width: 300px;
   position: relative; z-index: 1;
   margin-top: 4px;
 }
 
-/* ── Processing ── */
 .pdf-processing {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
   padding: 60px 40px;
-  color: #64748b;
+  color: var(--text-soft);
   flex: 1;
   justify-content: center;
 }
 .pdf-spinner {
   width: 40px; height: 40px;
-  border: 3px solid rgba(255,255,255,0.08);
-  border-top-color: var(--pdf-accent, #a855f7);
+  border: 3px solid var(--border);
+  border-top-color: var(--text);
   border-radius: 50%;
   animation: pdf-spin 0.8s linear infinite;
 }
 @keyframes pdf-spin { to { transform: rotate(360deg); } }
 
-/* ── Bubbles ── */
 .pdf-bubble {
   display: flex;
   gap: 10px;
@@ -207,9 +194,25 @@
   flex-direction: row-reverse;
 }
 .pdf-bubble-avatar {
-  font-size: 1.2rem;
   flex-shrink: 0;
   margin-top: 4px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+.pdf-bubble-avatar--bot {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.pdf-bubble-avatar--user {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
 }
 .pdf-bubble-content {
   display: flex;
@@ -217,29 +220,26 @@
   gap: 5px;
 }
 .pdf-bubble-text {
-  background: rgba(255,255,255,0.07);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 14px;
   padding: 11px 15px;
   font-size: 0.9rem;
   line-height: 1.65;
   word-break: break-word;
-  color: #e2e8f0;
+  color: var(--text);
 }
 .pdf-bubble--user .pdf-bubble-text {
-  background: var(--pdf-accent, #a855f7);
-  color: #fff;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border-color: transparent;
 }
 
-/* ════════════════════════════════════════════════
-   FEATURE 2 — Typewriter / streaming cursor
-   ════════════════════════════════════════════════ */
-.pdf-bubble-text--streaming {
-  position: relative;
-}
+.pdf-bubble-text--streaming { position: relative; }
 .typewriter-active::after {
   content: '▋';
   display: inline-block;
-  color: var(--pdf-accent, #a855f7);
+  color: var(--text);
   animation: pdf-blink 0.7s step-end infinite;
   margin-left: 1px;
   font-size: 0.85em;
@@ -249,9 +249,6 @@
   50%       { opacity: 0; }
 }
 
-/* ════════════════════════════════════════════════
-   FEATURE 3 — Confidence badge
-   ════════════════════════════════════════════════ */
 .pdf-confidence {
   display: inline-flex;
   align-items: center;
@@ -259,30 +256,29 @@
   font-size: 0.72rem;
   font-weight: 600;
   padding: 3px 10px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   width: fit-content;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 .conf-dot { font-size: 0.6rem; }
+.conf-high   { background: rgba(52, 199, 89, 0.12);  color: var(--status-green); border: 1px solid rgba(52, 199, 89, 0.3); }
+.conf-medium { background: rgba(254, 188, 46, 0.12); color: var(--window-yellow); border: 1px solid rgba(254, 188, 46, 0.3); }
+.conf-low    { background: rgba(255, 95, 87, 0.1);  color: var(--window-red); border: 1px solid rgba(255, 95, 87, 0.25); }
 
-.conf-high   { background: rgba(34,197,94,0.15);  color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
-.conf-medium { background: rgba(234,179,8,0.15);  color: #facc15; border: 1px solid rgba(234,179,8,0.3); }
-.conf-low    { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
-
-/* ── Typing dots ── */
 .pdf-typing {
   display: flex;
   gap: 5px;
   padding: 12px 16px;
-  background: rgba(255,255,255,0.07);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 14px;
   width: fit-content;
 }
 .pdf-typing span {
   width: 7px; height: 7px;
   border-radius: 50%;
-  background: var(--pdf-accent, #a855f7);
+  background: var(--text-hint);
   animation: pdf-bounce 1.2s infinite;
 }
 .pdf-typing span:nth-child(2) { animation-delay: 0.2s; }
@@ -292,102 +288,45 @@
   40%           { transform: translateY(-7px); }
 }
 
-/* ── Input row ── */
 .pdf-input-row {
   display: flex;
   gap: 10px;
   padding: 14px 20px;
-  border-top: 1px solid rgba(255,255,255,0.07);
-  background: rgba(255,255,255,0.025);
+  border-top: 1px solid var(--border);
+  background: var(--header-bg);
   flex-shrink: 0;
   align-items: flex-end;
+  backdrop-filter: blur(12px);
 }
 .pdf-input {
   flex: 1;
   resize: none;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 10px 14px;
   font-size: 0.9rem;
   font-family: inherit;
-  background: rgba(255,255,255,0.05);
-  color: #e2e8f0;
+  background: var(--surface);
+  color: var(--text);
   outline: none;
   transition: border-color 0.2s;
   line-height: 1.5;
 }
-.pdf-input::placeholder { color: #475569; }
-.pdf-input:focus { border-color: var(--pdf-accent, #a855f7); }
+.pdf-input::placeholder { color: var(--text-hint); }
+.pdf-input:focus { border-color: var(--border-strong); }
 .pdf-input:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .pdf-send-btn {
   width: 44px; height: 44px;
-  background: var(--pdf-accent, #a855f7);
-  color: #fff;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 1.1rem;
   transition: opacity 0.2s, transform 0.15s;
   flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.pdf-send-btn:hover:not(:disabled) { opacity: 0.85; transform: translateY(-1px); }
+.pdf-send-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
 .pdf-send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-
-/* ════════════════════════════════════════════════
-   FEATURE 4 — Aurora theme
-   ════════════════════════════════════════════════ */
-[data-theme="aurora"] .pdf-chat-panel {
-  --pdf-accent: #7c3aed;
-  background: transparent;
-}
-[data-theme="aurora"] .pdf-drop-zone {
-  border-color: rgba(124,58,237,0.4);
-  background: rgba(124,58,237,0.06);
-}
-[data-theme="aurora"] .pdf-drop-zone:hover {
-  border-color: rgba(124,58,237,0.8);
-  background: rgba(124,58,237,0.1);
-  box-shadow: 0 8px 28px rgba(124,58,237,0.2);
-}
-[data-theme="aurora"] .pdf-drop-glow {
-  box-shadow: inset 0 0 0 1.5px rgba(124,58,237,0.6);
-}
-[data-theme="aurora"] .pdf-upload-btn,
-[data-theme="aurora"] .pdf-send-btn { background: linear-gradient(135deg, #7c3aed, #06b6d4); }
-[data-theme="aurora"] .pdf-typing span { background: #7c3aed; }
-[data-theme="aurora"] .typewriter-active::after { color: #06b6d4; }
-[data-theme="aurora"] .pdf-bubble--user .pdf-bubble-text {
-  background: linear-gradient(135deg, #7c3aed, #06b6d4);
-}
-
-/* ── Pink theme ── */
-[data-theme="pink"] .pdf-chat-panel  { --pdf-accent: #ec4899; }
-[data-theme="pink"] .pdf-drop-zone   { border-color: rgba(236,72,153,0.35); background: rgba(236,72,153,0.04); }
-[data-theme="pink"] .pdf-drop-zone:hover { border-color: rgba(236,72,153,0.75); background: rgba(236,72,153,0.08); box-shadow: 0 8px 28px rgba(236,72,153,0.15); }
-[data-theme="pink"] .pdf-drop-glow   { box-shadow: inset 0 0 0 1.5px rgba(236,72,153,0.55); }
-
-/* ── Dark theme (default, no overrides needed) ── */
-[data-theme="dark"] .pdf-chat-panel  { --pdf-accent: #a855f7; }
-
-/* ── Light theme ── */
-[data-theme="light"] .pdf-chat-panel {
-  --pdf-accent: #7c3aed;
-  --pdf-bg: #f8faff;
-  --pdf-text: #111827;
-  background: #f8faff;
-  color: #111827;
-}
-[data-theme="light"] .pdf-chat-header { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.07); }
-[data-theme="light"] .pdf-input-row   { background: #f1f5f9; border-color: #e5e7eb; }
-[data-theme="light"] .pdf-input       { background: #fff; color: #111; border-color: #d1d5db; }
-[data-theme="light"] .pdf-input::placeholder { color: #9ca3af; }
-[data-theme="light"] .pdf-bubble-text { background: #f1f5f9; color: #111; }
-[data-theme="light"] .pdf-typing      { background: #f1f5f9; }
-[data-theme="light"] .pdf-drop-zone   { border-color: rgba(124,58,237,0.3); background: rgba(124,58,237,0.03); }
-[data-theme="light"] .pdf-drop-title  { color: #111827; }
-[data-theme="light"] .pdf-drop-sub    { color: #6b7280; }
-[data-theme="light"] .pdf-badge       { background: #fff; border-color: #e5e7eb; }
-[data-theme="light"] .pdf-badge-name  { color: #111; }
-[data-theme="light"] .pdf-messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); }

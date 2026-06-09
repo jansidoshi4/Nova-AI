@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { GoogleLogin } from '@react-oauth/google'
+import Doodle from './Doodles'
+
 
 const initialForm = { name: '', email: '', password: '' }
 
@@ -10,7 +11,7 @@ const PREVIEW_MESSAGES = [
   { role: 'ai',    text: 'APAC came in 11% below target — mainly due to delayed onboarding.' },
 ]
 
-export default function AuthScreen({ onSignIn, onSignUp, onGoogle }) {
+export default function AuthScreen({ onSignIn, onSignUp, onGoogle, themeLabel, onCycleTheme }) {
   const [mode, setMode]   = useState('signin')
   const [form, setForm]   = useState(initialForm)
   const [error, setError] = useState('')
@@ -39,23 +40,7 @@ export default function AuthScreen({ onSignIn, onSignUp, onGoogle }) {
     }
   }
 
-  const submitGoogle = async ({ credential }) => {
-    setError('')
-    setIsLoading(true)
-    try {
-      const payload = JSON.parse(atob(credential.split('.')[1]))
-      await onGoogle({
-        id: `google:${payload.sub}`,
-        name: payload.name || payload.email,
-        email: payload.email,
-        picture: payload.picture,
-        provider: 'google',
-      })
-    } catch {
-      setError('Google sign-in failed. Please try again.')
-      setIsLoading(false)
-    }
-  }
+
 
   const switchMode = (next) => {
     setMode(next)
@@ -66,39 +51,60 @@ export default function AuthScreen({ onSignIn, onSignUp, onGoogle }) {
   return (
     <div className="auth-page">
 
+      {onCycleTheme && (
+        <div className="auth-topbar">
+          <button className="theme-toggle-btn" type="button" onClick={onCycleTheme}>
+            {themeLabel}
+          </button>
+        </div>
+      )}
+
       {/* ── Left: brand panel ── */}
       <div className="auth-brand">
         <div className="auth-brand-inner">
           <div className="auth-wordmark">
-            <span className="auth-wordmark-dot" aria-hidden="true" />
+            <span className="auth-wordmark-icon" aria-hidden="true">
+              <i className="ti ti-box" />
+            </span>
             Nova AI
           </div>
+
+          <h1 className="auth-hero-title">
+            The only AI workspace<br />
+            <span>built for your team</span>
+          </h1>
           <p className="auth-tagline">Your conversations, your context, always remembered.</p>
 
-          {/* Floating chat preview */}
           <div className="auth-chat-preview">
-            {PREVIEW_MESSAGES.map((m, i) => (
-              <div
-                key={i}
-                className={`auth-msg auth-msg--${m.role}`}
-                style={{ animationDelay: `${i * 0.18}s` }}
-              >
-                {m.role === 'ai' && (
-                  <div className="auth-msg-avatar" aria-hidden="true">
-                    <i className="ti ti-sparkles" />
-                  </div>
-                )}
-                <div className="auth-msg-bubble">{m.text}</div>
-              </div>
-            ))}
+            <div className="auth-window-bar">
+              <span className="auth-window-dot auth-window-dot--red" />
+              <span className="auth-window-dot auth-window-dot--yellow" />
+              <span className="auth-window-dot auth-window-dot--green" />
+              <span className="auth-window-label">Nova AI / Preview</span>
+            </div>
+            <div className="auth-chat-messages">
+              {PREVIEW_MESSAGES.map((m, i) => (
+                <div
+                  key={i}
+                  className={`auth-msg auth-msg--${m.role}`}
+                  style={{ animationDelay: `${i * 0.18}s` }}
+                >
+                  {m.role === 'ai' && (
+                    <div className="auth-msg-avatar" aria-hidden="true">
+                      <Doodle name="sparkle" size={14} />
+                    </div>
+                  )}
+                  <div className="auth-msg-bubble">{m.text}</div>
+                </div>
+              ))}
 
-            {/* Typing indicator */}
-            <div className="auth-msg auth-msg--ai" style={{ animationDelay: '0.8s' }}>
-              <div className="auth-msg-avatar" aria-hidden="true">
-                <i className="ti ti-sparkles" />
-              </div>
-              <div className="auth-msg-bubble auth-typing">
-                <span /><span /><span />
+              <div className="auth-msg auth-msg--ai" style={{ animationDelay: '0.8s' }}>
+                <div className="auth-msg-avatar" aria-hidden="true">
+                  <Doodle name="sparkle" size={14} />
+                </div>
+                <div className="auth-msg-bubble auth-typing">
+                  <span /><span /><span />
+                </div>
               </div>
             </div>
           </div>
@@ -195,14 +201,14 @@ export default function AuthScreen({ onSignIn, onSignUp, onGoogle }) {
           <div className="auth-divider"><span>or</span></div>
 
           <div className="google-login-wrap">
-            <GoogleLogin
-              onSuccess={submitGoogle}
-              onError={() => setError('Google sign-in failed.')}
-              useOneTap={false}
-              text="signin_with"
-              shape="rectangular"
-              width="100%"
-            />
+          <button
+              className="google-btn"
+              type="button"
+              onClick={onGoogle}
+            >
+              <img src="/google.svg" alt="Google" />
+              <span>Sign in with Google</span>
+            </button>
           </div>
 
           <p className="auth-footnote">

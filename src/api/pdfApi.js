@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase'
+
 const BACKEND_URL = 'http://localhost:8000/api'
 
 /**
@@ -5,8 +7,17 @@ const BACKEND_URL = 'http://localhost:8000/api'
  * Returns { pdf_id, filename, pages, chunks, embedding_method }
  */
 export async function uploadPDF(file) {
+  // Get the currently logged-in user's ID
+  const { data: { session } } = await supabase.auth.getSession()
+  const userId = session?.user?.id
+
   const formData = new FormData()
   formData.append('file', file)
+
+  // Pass user_id so backend can save to Supabase pdf_sessions
+  if (userId) {
+    formData.append('user_id', userId)
+  }
 
   const res = await fetch(`${BACKEND_URL}/pdf/upload`, {
     method: 'POST',

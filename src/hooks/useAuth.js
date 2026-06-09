@@ -1,111 +1,72 @@
 import { useCallback, useEffect, useState } from 'react'
-
-const USERS_KEY = 'nova-auth-users'
-const CURRENT_KEY = 'nova-auth-current-user'
-
-function readJson(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch {
-    return fallback
-  }
-}
-
-function saveUsers(users) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users))
-}
-
-function publicUser(user) {
-  if (!user) return null
-  const { password, ...safeUser } = user
-  return safeUser
-}
-
-function makeId(email, provider = 'password') {
-  return `${provider}:${email.trim().toLowerCase()}`
-}
+import { supabase } from '../lib/supabase'
 
 export function useAuth() {
-  const [user, setUser] = useState(() => {
-    const currentId = localStorage.getItem(CURRENT_KEY)
-    const users = readJson(USERS_KEY, [])
-    return publicUser(users.find(item => item.id === currentId))
-  })
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true) // true until we know if user is logged in
 
+  // Listen to auth state changes (login, logout, token refresh)
   useEffect(() => {
-    if (user?.id) localStorage.setItem(CURRENT_KEY, user.id)
-    else localStorage.removeItem(CURRENT_KEY)
-  }, [user])
+    // Get current session on mount — this resolves the initial loading state
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
 
-  const signUp = useCallback(({ name, email, password }) => {
-    const normalizedEmail = email.trim().toLowerCase()
-    const id = makeId(normalizedEmail)
-    const users = readJson(USERS_KEY, [])
+    // Subscribe to changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
 
-    if (users.some(item => item.id === id)) {
-      throw new Error('An account already exists with this email.')
-    }
+    return () => subscription.unsubscribe()
+  }, [])
 
-    const nextUser = {
-      id,
-      name: name.trim() || normalizedEmail.split('@')[0],
-      email: normalizedEmail,
+  const signUp = useCallback(async ({ name, email, password }) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
       password,
-      provider: 'password',
-      createdAt: new Date().toISOString(),
-    }
-
-    saveUsers([...users, nextUser])
-    setUser(publicUser(nextUser))
+      options: {
+        data: { name: name.trim() }, // stored in user_metadata
+      },
+    })
+    if (error) throw new Error(error.message)
+    return data
   }, [])
 
-  const signIn = useCallback(({ email, password }) => {
-    const normalizedEmail = email.trim().toLowerCase()
-    const id = makeId(normalizedEmail)
-    const users = readJson(USERS_KEY, [])
-    const match = users.find(item => item.id === id && item.password === password)
-
-    if (!match) {
-      throw new Error('Email or password is incorrect.')
-    }
-
-    setUser(publicUser(match))
+  const signIn = useCallback(async ({ email, password }) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    })
+    if (error) throw new Error(error.message)
+    return data
   }, [])
 
-  const signInWithGoogle = useCallback((googleUser) => {
-    const normalizedEmail = googleUser.email?.trim().toLowerCase()
-    const id = googleUser.id || makeId(normalizedEmail, 'google')
-    const users = readJson(USERS_KEY, [])
-    let nextUser = users.find(item => item.id === id)
-
-    if (!nextUser) {
-      nextUser = {
-        id,
-        name: googleUser.name || normalizedEmail?.split('@')[0] || 'Google User',
-        email: normalizedEmail,
-        picture: googleUser.picture,
-        provider: 'google',
-        createdAt: new Date().toISOString(),
-      }
-      saveUsers([...users, nextUser])
-    } else {
-      nextUser = {
-        ...nextUser,
-        name: googleUser.name || nextUser.name,
-        email: normalizedEmail || nextUser.email,
-        picture: googleUser.picture || nextUser.picture,
-        provider: 'google',
-      }
-      saveUsers(users.map(item => item.id === id ? nextUser : item))
-    }
-
-    setUser(publicUser(nextUser))
+  const signInWithGoogle = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin, // redirects back to your app after login
+      },
+    })
+    if (error) throw new Error(error.message)
   }, [])
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw new Error(error.message)
     setUser(null)
   }, [])
 
-  return { user, signIn, signUp, signInWithGoogle, signOut }
+  // Helper — matches your old user shape so the rest of the app doesn't break
+  const normalizedUser = user ? {
+    id: user.id,
+    email: user.email,
+    name: user.user_metadata?.name || user.email?.split('@')[0],
+    picture: user.user_metadata?.avatar_url || null,
+    provider: user.app_metadata?.provider || 'password',
+  } : null
+
+  return { user: normalizedUser, loading, signIn, signUp, signInWithGoogle, signOut }
 }

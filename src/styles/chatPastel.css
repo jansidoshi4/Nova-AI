@@ -1,0 +1,334 @@
+/* ═══════════════════════════════════════════════════════════
+   Chat screens — dotted bg + monochrome UI
+   Pastel accent ONLY on suggestion chips
+   ═══════════════════════════════════════════════════════════ */
+
+/* Dot-grid background on chat layout */
+.page {
+  background-color: var(--bg);
+  background-image: radial-gradient(circle, var(--bg-dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Monochrome surfaces — no purple wash */
+.page .sidebar {
+  background: var(--surface) !important;
+  border-right-color: var(--border) !important;
+}
+
+.page .sidebar-header {
+  border-bottom-color: var(--border) !important;
+}
+
+.page .session-item-wrap:hover {
+  background: var(--surface-muted) !important;
+}
+
+.page .session-item-wrap.active {
+  background: var(--surface-muted) !important;
+}
+
+.page .new-chat-btn {
+  background: var(--surface-muted) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+.page .new-chat-btn:hover {
+  background: var(--btn-primary-bg) !important;
+  color: var(--btn-primary-text) !important;
+}
+
+.page .chat-wrap {
+  background: transparent !important;
+}
+
+.page .messages,
+.page .schema-input-area {
+  background: transparent;
+}
+
+.page .chat-header {
+  background: var(--header-bg) !important;
+  border-bottom-color: var(--border) !important;
+  backdrop-filter: blur(16px);
+}
+
+.page .bot-avatar {
+  background: var(--btn-primary-bg) !important;
+}
+
+.page .bot-avatar .ti {
+  color: var(--btn-primary-text) !important;
+}
+
+.page .bot-bubble {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  box-shadow: var(--shadow-pink) !important;
+}
+
+.page .user-bubble {
+  background: var(--btn-primary-bg) !important;
+  color: var(--btn-primary-text) !important;
+}
+
+.page .user-bubble code,
+.page .user-bubble a {
+  color: var(--btn-primary-text) !important;
+}
+
+.page .bot-av {
+  background: var(--surface-muted) !important;
+  border-color: var(--border) !important;
+}
+
+.page .bot-av i {
+  color: var(--text) !important;
+}
+
+.page .user-av {
+  background: var(--btn-primary-bg) !important;
+}
+
+.page .user-av .ti {
+  color: var(--btn-primary-text) !important;
+}
+
+.page .bubble-welcome {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.page .bubble-welcome .doodle {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--text-soft);
+}
+
+.page .input-area {
+  background: var(--header-bg) !important;
+  border-top-color: var(--border) !important;
+  backdrop-filter: blur(12px);
+}
+
+.page .typing {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+.page .typing span {
+  background: var(--text-hint) !important;
+}
+
+.page .right-col {
+  background: var(--surface) !important;
+  border-left-color: var(--border) !important;
+}
+
+.page .schema-textarea {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+.page .schema-table-block {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+.page .schema-table-name {
+  background: var(--surface-muted) !important;
+  color: var(--text) !important;
+}
+
+.page .result-table thead th {
+  background: var(--surface-muted) !important;
+  color: var(--text) !important;
+}
+
+.page .result-table tbody tr:nth-child(even) {
+  background: var(--surface-muted) !important;
+}
+
+.page .send-btn {
+  background: var(--btn-primary-bg) !important;
+  color: var(--btn-primary-text) !important;
+}
+
+.page .send-btn i {
+  color: var(--btn-primary-text) !important;
+}
+
+/* ── PDF chat — same monochrome ── */
+.page .pdf-chat-panel {
+  background: transparent !important;
+}
+
+.page .pdf-chat-header {
+  background: var(--header-bg) !important;
+  border-bottom-color: var(--border) !important;
+  backdrop-filter: blur(12px);
+}
+
+.page .pdf-drop-zone {
+  background: var(--surface) !important;
+  border-color: var(--border-strong) !important;
+}
+
+.page .pdf-drop-zone:hover {
+  background: var(--surface-muted) !important;
+  border-color: var(--text) !important;
+}
+
+.page .pdf-bubble-text {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.page .pdf-bubble--user .pdf-bubble-text {
+  background: var(--btn-primary-bg) !important;
+  color: var(--btn-primary-text) !important;
+  border-color: transparent !important;
+}
+
+.page .pdf-bubble-avatar--bot {
+  background: var(--surface-muted) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+.page .pdf-bubble-avatar--user {
+  background: var(--btn-primary-bg) !important;
+  color: var(--btn-primary-text) !important;
+}
+
+.page .pdf-upload-btn,
+.page .pdf-send-btn {
+  background: var(--btn-primary-bg) !important;
+  color: var(--btn-primary-text) !important;
+}
+
+.page .pdf-input-row {
+  background: var(--header-bg) !important;
+  border-top-color: var(--border) !important;
+  backdrop-filter: blur(12px);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Pastel — suggestion chips ONLY
+   ═══════════════════════════════════════════════════════════ */
+.page .chip {
+  background: #D1FAE5 !important;
+  border-color: #A7F3D0 !important;
+  color: #065F46 !important;
+}
+
+.page .chip:nth-child(2) {
+  background: #EDE9FE !important;
+  border-color: #DDD6FE !important;
+  color: #5B21B6 !important;
+}
+
+.page .chip:nth-child(3) {
+  background: #FFEDD5 !important;
+  border-color: #FED7AA !important;
+  color: #9A3412 !important;
+}
+
+[data-theme="dark"] .page .chip {
+  background: rgba(52, 211, 153, 0.15) !important;
+  border-color: rgba(52, 211, 153, 0.3) !important;
+  color: #6EE7B7 !important;
+}
+
+[data-theme="dark"] .page .chip:nth-child(2) {
+  background: rgba(167, 139, 250, 0.15) !important;
+  border-color: rgba(167, 139, 250, 0.3) !important;
+  color: #C4B5FD !important;
+}
+
+[data-theme="dark"] .page .chip:nth-child(3) {
+  background: rgba(251, 191, 36, 0.12) !important;
+  border-color: rgba(251, 191, 36, 0.28) !important;
+  color: #FCD34D !important;
+}
+
+.page .chip:hover {
+  filter: brightness(0.94);
+  transform: translateY(-1px);
+}
+
+.page .chip:hover {
+  background: #D1FAE5 !important;
+  color: #065F46 !important;
+  border-color: #A7F3D0 !important;
+}
+
+.page .chip:nth-child(2):hover {
+  background: #EDE9FE !important;
+  color: #5B21B6 !important;
+  border-color: #DDD6FE !important;
+}
+
+.page .chip:nth-child(3):hover {
+  background: #FFEDD5 !important;
+  color: #9A3412 !important;
+  border-color: #FED7AA !important;
+}
+
+/* ── Doodle helpers ── */
+.doodle {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.doodle--inline {
+  margin-right: 6px;
+}
+
+.schema-panel-icon,
+.result-table-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-soft);
+}
+
+.schema-tool-btn {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+}
+
+.schema-table-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdf-chat-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-drop-icon-wrap {
+  color: var(--text-soft);
+}
+
+.pdf-error,
+.result-error,
+.bubble-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.no-sessions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-hint) !important;
+}

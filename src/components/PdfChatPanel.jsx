@@ -1,22 +1,48 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { uploadPDF, getPDFChatReplyStream, deletePDF } from '../api/pdfApi'
+import Avatar from './Avatar'
+import Doodle from './Doodles'
 import '../styles/pdfChat.css'
 
-export default function PdfChatPanel({ theme = 'dark' }) {
-  const [pdfInfo, setPdfInfo]       = useState(null)
-  const [uploading, setUploading]   = useState(false)
-  const [uploadErr, setUploadErr]   = useState('')
-  const [messages, setMessages]     = useState([])
-  const [input, setInput]           = useState('')
-  const [thinking, setThinking]     = useState(false)
-  const [dragOver, setDragOver]     = useState(false)
+/**
+ * We persist pdfInfo by storing it as a hidden system message in the session:
+ *   { role: 'system', text: '__PDF_INFO__' + JSON.stringify(pdfInfo) }
+ * On load we extract it from messages so pdfInfo survives page refresh / navigation.
+ */
+function extractPdfInfo(messages) {
+  const sys = messages?.find(
+    m => m.role === 'system' && m.text?.startsWith('__PDF_INFO__')
+  )
+  if (!sys) return null
+  try { return JSON.parse(sys.text.slice('__PDF_INFO__'.length)) } catch { return null }
+}
+
+export default function PdfChatPanel({ theme = 'dark', activeSession, setMessages, activeId }) {
+  const [uploading, setUploading] = useState(false)
+  const [uploadErr, setUploadErr] = useState('')
+  const [input, setInput]         = useState('')
+  const [thinking, setThinking]   = useState(false)
+  const [dragOver, setDragOver]   = useState(false)
 
   const fileInputRef = useRef(null)
   const bottomRef    = useRef(null)
 
+  const messages = activeSession?.messages || []
+
+  // Derive pdfInfo from session messages — survives navigation & page refresh
+  const pdfInfo = extractPdfInfo(messages)
+
+  // Visible chat messages (hide the system marker)
+  const visibleMessages = messages.filter(m => m.role !== 'system')
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, thinking])
+  }, [visibleMessages, thinking])
+
+  // When session changes, just clear upload error
+  useEffect(() => {
+    setUploadErr('')
+  }, [activeId])
 
   async function processFile(file) {
     if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
@@ -25,16 +51,26 @@ export default function PdfChatPanel({ theme = 'dark' }) {
     }
     setUploadErr('')
     setUploading(true)
-    setMessages([])
-    setPdfInfo(null)
+    setMessages([]) // clear previous session messages
     try {
       const info = await uploadPDF(file)
-      setPdfInfo(info)
-      setMessages([{
+
+      // Persist pdfInfo as a hidden system message so it survives reload
+      const sysMsg = {
+        id: crypto.randomUUID(),
+        role: 'system',
+        text: '__PDF_INFO__' + JSON.stringify(info),
+        createdAt: new Date().toISOString(),
+      }
+      const welcomeMsg = {
+        id: crypto.randomUUID(),
         role: 'bot',
-        text: `📄 **${info.filename}** uploaded successfully!\n\n• **${info.pages}** page(s) · **${info.chunks}** text chunks\n• Embeddings: *${info.embedding_method}*\n\nAsk me anything about this document!`,
+        text: `**${info.filename}** uploaded successfully! Ask me anything about this document.`,
+        doodle: 'document',
         confidence: null,
-      }])
+        createdAt: new Date().toISOString(),
+      }
+      setMessages([sysMsg, welcomeMsg])
     } catch (err) {
       setUploadErr(err.message)
     } finally {
@@ -48,16 +84,8 @@ export default function PdfChatPanel({ theme = 'dark' }) {
     e.target.value = ''
   }
 
-  function handleDragOver(e) {
-    e.preventDefault()
-    setDragOver(true)
-  }
-
-  function handleDragLeave(e) {
-    e.preventDefault()
-    setDragOver(false)
-  }
-
+  function handleDragOver(e) { e.preventDefault(); setDragOver(true) }
+  function handleDragLeave(e) { e.preventDefault(); setDragOver(false) }
   function handleDrop(e) {
     e.preventDefault()
     setDragOver(false)
@@ -69,31 +97,52 @@ export default function PdfChatPanel({ theme = 'dark' }) {
     const text = input.trim()
     if (!text || thinking || !pdfInfo) return
 
-    const userMsg  = { role: 'user', text, confidence: null }
-    const botShell = { role: 'bot', text: '', confidence: null, streaming: true }
+    const userMsg = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      text,
+      confidence: null,
+      createdAt: new Date().toISOString(),
+    }
+    const botShell = {
+      id: crypto.randomUUID(),
+      role: 'bot',
+      text: '',
+      confidence: null,
+      streaming: true,
+      createdAt: new Date().toISOString(),
+    }
 
     setMessages(prev => [...prev, userMsg, botShell])
     setInput('')
     setThinking(true)
 
     try {
-      const history = [...messages, userMsg].map(m => ({ role: m.role, text: m.text }))
-
-      // confidence comes as first chunk: "__CONF:high__" etc.
+      // Pass only visible messages as history (exclude system marker)
+      const history = [...visibleMessages, userMsg].map(m => ({ role: m.role, text: m.text }))
       let confidenceSet = false
+      let buffer = ''
 
       await getPDFChatReplyStream(pdfInfo.pdf_id, history, (chunk) => {
         setMessages(prev => {
           const updated = [...prev]
           const last = { ...updated[updated.length - 1] }
 
-          // Parse confidence tag sent from backend
-          if (!confidenceSet && chunk.startsWith('__CONF:')) {
-            const level = chunk.replace('__CONF:', '').replace('__', '').trim()
-            last.confidence = level
-            confidenceSet = true
+          if (!confidenceSet) {
+            buffer += chunk
+            const confMatch = buffer.match(/__CONF:(high|medium|low)__/)
+            if (confMatch) {
+              last.confidence = confMatch[1]
+              confidenceSet = true
+              last.text = buffer.replace(/__CONF:(high|medium|low)__/, '').trimStart()
+              buffer = ''
+            } else if (buffer.length > 30) {
+              last.text = buffer.replace(/__CONF:(high|medium|low)__/g, '')
+              buffer = ''
+              confidenceSet = true
+            }
           } else {
-            last.text = last.text + chunk
+            last.text = (last.text + chunk).replace(/__CONF:(high|medium|low)__/g, '')
           }
 
           updated[updated.length - 1] = last
@@ -101,7 +150,7 @@ export default function PdfChatPanel({ theme = 'dark' }) {
         })
       })
 
-      // Mark streaming done
+      // Mark streaming done → triggers useChatHistory to persist to Supabase
       setMessages(prev => {
         const updated = [...prev]
         updated[updated.length - 1] = { ...updated[updated.length - 1], streaming: false }
@@ -111,7 +160,12 @@ export default function PdfChatPanel({ theme = 'dark' }) {
     } catch (err) {
       setMessages(prev => {
         const updated = [...prev]
-        updated[updated.length - 1] = { role: 'bot', text: `⚠️ ${err.message}`, confidence: null, streaming: false }
+        updated[updated.length - 1] = {
+          ...updated[updated.length - 1],
+          text: `⚠️ ${err.message}`,
+          confidence: null,
+          streaming: false,
+        }
         return updated
       })
     } finally {
@@ -128,7 +182,6 @@ export default function PdfChatPanel({ theme = 'dark' }) {
 
   async function handleRemovePdf() {
     if (pdfInfo) await deletePDF(pdfInfo.pdf_id)
-    setPdfInfo(null)
     setMessages([])
     setUploadErr('')
   }
@@ -138,11 +191,14 @@ export default function PdfChatPanel({ theme = 'dark' }) {
 
       {/* ── Header ── */}
       <div className="pdf-chat-header">
-        <span className="pdf-chat-title">📄 PDF Chat</span>
+        <span className="pdf-chat-title">
+          <Doodle name="document" size={20} />
+          PDF Chat
+        </span>
         {pdfInfo ? (
           <div className="pdf-badge">
             <span className="pdf-badge-name">{pdfInfo.filename}</span>
-            <span className="pdf-badge-meta">{pdfInfo.pages}p · {pdfInfo.chunks} chunks</span>
+            <span className="pdf-badge-meta">{pdfInfo.pages}p</span>
             <button className="pdf-remove-btn" onClick={handleRemovePdf} title="Remove PDF">✕</button>
           </div>
         ) : (
@@ -151,7 +207,9 @@ export default function PdfChatPanel({ theme = 'dark' }) {
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
           >
-            {uploading ? 'Processing…' : '⬆ Upload PDF'}
+            {uploading ? 'Processing…' : (
+              <><Doodle name="upload" size={16} className="doodle--inline" /> Upload PDF</>
+            )}
           </button>
         )}
         <input
@@ -163,12 +221,16 @@ export default function PdfChatPanel({ theme = 'dark' }) {
         />
       </div>
 
-      {uploadErr && <div className="pdf-error">⚠️ {uploadErr}</div>}
+      {uploadErr && (
+        <div className="pdf-error">
+          <Doodle name="warning" size={18} />
+          {uploadErr}
+        </div>
+      )}
 
       {/* ── Messages ── */}
       <div className="pdf-messages">
 
-        {/* Glassmorphism drag-and-drop zone */}
         {!pdfInfo && !uploading && (
           <div
             className={`pdf-drop-zone ${dragOver ? 'pdf-drop-zone--active' : ''}`}
@@ -178,37 +240,44 @@ export default function PdfChatPanel({ theme = 'dark' }) {
             onClick={() => fileInputRef.current?.click()}
           >
             <div className="pdf-drop-glow" />
-            <div className="pdf-drop-icon">📄</div>
+            <div className="pdf-drop-icon-wrap">
+              <Doodle name="document" size={56} />
+            </div>
             <p className="pdf-drop-title">Drop your PDF here</p>
             <p className="pdf-drop-sub">or click to browse</p>
-            <p className="pdf-drop-hint">Nova uses <strong>embeddings</strong> to find the most relevant passages before answering</p>
+            <p className="pdf-drop-hint">Nova reads your PDF and answers questions about it</p>
           </div>
         )}
 
         {uploading && (
           <div className="pdf-processing">
             <div className="pdf-spinner" />
-            <p>Extracting text and building embeddings…</p>
+            <p>Reading PDF…</p>
           </div>
         )}
 
-        {messages.map((msg, i) => (
-          <div key={i} className={`pdf-bubble pdf-bubble--${msg.role}`}>
-            <div className="pdf-bubble-avatar">{msg.role === 'user' ? '👤' : '🤖'}</div>
+        {pdfInfo && visibleMessages.map((msg, i) => (
+          <div key={msg.id || i} className={`pdf-bubble pdf-bubble--${msg.role}`}>
+            <Avatar role={msg.role} />
             <div className="pdf-bubble-content">
-              <div className={`pdf-bubble-text ${msg.streaming ? 'pdf-bubble-text--streaming' : ''}`}>
-                <TypewriterText text={msg.text} streaming={msg.streaming} />
-              </div>
+              {msg.role === 'bot' && msg.streaming && msg.text === '' ? (
+                <div className="pdf-typing"><span /><span /><span /></div>
+              ) : (
+                <div className={`pdf-bubble-text ${msg.streaming ? 'pdf-bubble-text--streaming' : ''}`}>
+                  {msg.doodle && (
+                    <div className="bubble-welcome" style={{ marginBottom: msg.text ? 8 : 0 }}>
+                      <Doodle name={msg.doodle} size={24} />
+                    </div>
+                  )}
+                  <TypewriterText text={msg.text} streaming={msg.streaming} />
+                </div>
+              )}
               {msg.role === 'bot' && msg.confidence && (
                 <ConfidenceBadge level={msg.confidence} />
               )}
             </div>
           </div>
         ))}
-
-        {thinking && messages[messages.length - 1]?.text === '' && (
-          <div className="pdf-typing"><span /><span /><span /></div>
-        )}
 
         <div ref={bottomRef} />
       </div>
@@ -236,7 +305,7 @@ export default function PdfChatPanel({ theme = 'dark' }) {
   )
 }
 
-/* ── Typewriter effect for streaming text ── */
+/* ── Typewriter effect ── */
 function TypewriterText({ text = '', streaming = false }) {
   const lines = text.split('\n')
   return (

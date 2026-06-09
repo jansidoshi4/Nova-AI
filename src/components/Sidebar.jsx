@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import Doodle from './Doodles'
 
 function SessionItem({ session, isActive, onSelect, onRename, onDelete, onClose }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -92,18 +93,23 @@ export default function Sidebar({ isOpen, sessions, activeId, onSelect, onNew, o
       {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
       <aside className={`sidebar${isOpen ? ' open' : ' closed-desktop'}`}>
         <div className="sidebar-header">
-          <span className="sidebar-title">✨ Chats</span>
+          <span className="sidebar-title">Chats</span>
           <button className="icon-btn" onClick={onClose} aria-label="Close sidebar">
             <i className="ti ti-x" />
           </button>
         </div>
 
         <button className="new-chat-btn" onClick={onNew}>
-          <i className="ti ti-sparkles" /> New Chat
+          <i className="ti ti-plus" /> New Chat
         </button>
 
         <div className="session-list">
-          {sessions.length === 0 && <p className="no-sessions">No chats yet 🌸</p>}
+          {sessions.length === 0 && (
+            <p className="no-sessions">
+              <Doodle name="flower" size={28} />
+              No chats yet
+            </p>
+          )}
           {sessions.map(s => (
             <SessionItem
               key={s.id}

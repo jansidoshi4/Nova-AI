@@ -9,6 +9,7 @@ import Dashboard from './components/Dashboard'
 import SchemaPanel from './components/SchemaPanel'
 import ResultTable from './components/ResultTable'
 import PdfChatPanel from './components/PdfChatPanel'
+import Doodle from './components/Doodles'
 import { useAuth } from './hooks/useAuth'
 import { useChat } from './hooks/useChat'
 import { useChatHistory } from './hooks/useChatHistory'
@@ -19,13 +20,17 @@ function isSQL(text) {
   return /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|WITH)\b/i.test(text.trim())
 }
 
-const THEMES = ['pink', 'dark', 'light', 'aurora']
-const THEME_LABELS = { pink: '🌸 Pink', dark: '🌑 Dark', light: '☀️ Light', aurora: '🌌 Aurora' }
+const THEMES = ['light', 'dark']
+const THEME_LABELS = { light: 'Light', dark: 'Dark' }
+
+function normalizeTheme(stored) {
+  return THEMES.includes(stored) ? stored : 'light'
+}
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [theme, setTheme] = useState(() => localStorage.getItem('nova-theme') || 'pink')
+  const [theme, setTheme] = useState(() => normalizeTheme(localStorage.getItem('nova-theme')))
   const [schema, setSchema] = useState(() => localStorage.getItem('schema') || '')
   const [pdfFile, setPdfFile] = useState(null)
 
@@ -39,11 +44,12 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme)
   }, [])
 
-  const { user, signIn, signUp, signInWithGoogle, signOut } = useAuth()
+  const { user, loading, signIn, signUp, signInWithGoogle, signOut } = useAuth()
 
-  // Separate chat histories for each bot
-  const sqlHistory = useChatHistory(user ? `${user.id}:sql` : null)
-  const pdfHistory = useChatHistory(user ? `${user.id}:pdf` : null)
+  // Pass user.id directly — useChatHistory now uses Supabase
+  // type prop lets us store sql vs pdf sessions separately in the same table
+  const sqlHistory = useChatHistory(user?.id, 'sql')
+  const pdfHistory = useChatHistory(user?.id, 'pdf')
 
   const {
     sessions, activeId, activeSession,
@@ -100,12 +106,18 @@ INSERT INTO Courses VALUES
 (103, 'DBMS', 2);`)
   }
 
+  if (loading) {
+    return null // wait silently — avoids flashing AuthScreen while session is resolving
+  }
+
   if (!user) {
     return (
       <AuthScreen
         onSignIn={signIn}
         onSignUp={signUp}
         onGoogle={signInWithGoogle}
+        themeLabel={THEME_LABELS[theme]}
+        onCycleTheme={cycleTheme}
       />
     )
   }
@@ -147,7 +159,12 @@ INSERT INTO Courses VALUES
             onBackToDashboard={() => setCurrentScreen('dashboard')}
           />
 
-          <PdfChatPanel theme={theme} />
+          <PdfChatPanel
+            theme={theme}
+            activeSession={pdfHistory.activeSession}
+            setMessages={pdfHistory.setMessages}
+            activeId={pdfHistory.activeId}
+          />
         </div>
       </div>
     )
@@ -185,10 +202,10 @@ INSERT INTO Courses VALUES
           />
           <div className="schema-toolbar">
             <button className="schema-tool-btn" onClick={loadSampleSchema}>
-              📋 Load Sample
+              <Doodle name="clipboard" size={18} /> Load Sample
             </button>
             <button className="schema-tool-btn" onClick={resetWorkspace}>
-              🧹 Reset Workspace
+              <Doodle name="brush" size={18} /> Reset Workspace
             </button>
           </div>
         </div>
